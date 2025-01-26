@@ -199,12 +199,10 @@ export class Spreadsheet {
     this.container.addEventListener('mousedown', (e) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
-        // Store the currently editing cell
-        const editingCell = this.container.querySelector('.cell[contenteditable="true"]');
-        
-        // If clicking a different cell while editing, finish editing first
+        // First, handle any active editing
+        const editingCell = this.container.querySelector('.cell[contenteditable="true"]') as HTMLElement;
         if (editingCell && editingCell !== cell) {
-          this.finishEditing(editingCell as HTMLElement);
+          this.finishEditing(editingCell);
         }
 
         this.isSelecting = true;
@@ -214,23 +212,17 @@ export class Spreadsheet {
           this.selectionAnchor = this.activeCell;
           this.selectionStart = this.selectionAnchor;
           this.selectionEnd = cell;
-        } else if (cell !== editingCell) { // Only clear selection if not clicking the editing cell
-          // Normal click starts new selection
+          this.updateSelection(); // Update selection immediately
+        } else if (!cell.hasAttribute('contenteditable') || cell.getAttribute('contenteditable') === 'false') {
+          // Only start new selection if cell isn't being edited
           this.clearSelection();
           this.selectionStart = cell;
           this.selectionEnd = cell;
           this.selectionAnchor = cell;
+          cell.classList.add('selected'); // Add selected class immediately
         }
         
         this.activeCell = cell;
-        this.updateSelection();
-        
-        // Update formula bar
-        const cellId = cell.dataset.cellId!;
-        const cellName = document.getElementById('cell-name') as HTMLInputElement;
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        cellName.value = cellId;
-        formulaInput.value = this.data[cellId].formula || this.data[cellId].value;
       }
     });
 
@@ -285,7 +277,7 @@ export class Spreadsheet {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         // Keep the selection state but make the cell editable
-        cell.contentEditable = 'true';
+        cell.setAttribute('contenteditable', 'true');
         const cellId = cell.dataset.cellId!;
         cell.textContent = this.data[cellId].formula || this.data[cellId].value;
         cell.focus();
@@ -296,6 +288,7 @@ export class Spreadsheet {
     this.container.addEventListener('blur', (e) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
+        cell.setAttribute('contenteditable', 'false');
         this.finishEditing(cell);
       }
     }, true);
@@ -507,12 +500,8 @@ export class Spreadsheet {
   private updateSelection(): void {
     if (!this.selectionStart || !this.selectionEnd) return;
 
-    // Store editing state
-    const editingCell = this.container.querySelector('.cell[contenteditable="true"]') as HTMLElement;
-    const editingCellId = editingCell?.dataset.cellId;
-    const editingContent = editingCell?.textContent || '';
-    const selection = window.getSelection();
-    const range = selection?.getRangeAt(0);
+    // Clear previous selection
+    this.clearSelection();
 
     // Get the range of cells to select
     const startId = this.selectionStart.dataset.cellId!;
@@ -526,9 +515,6 @@ export class Spreadsheet {
     const minCol = Math.min(startCol, endCol);
     const maxCol = Math.max(startCol, endCol);
 
-    // Clear previous selection
-    this.clearSelection();
-
     // Select all cells in the range
     for (let row = minRow; row <= maxRow; row++) {
       for (let col = minCol; col <= maxCol; col++) {
@@ -537,19 +523,6 @@ export class Spreadsheet {
         if (cell) {
           cell.classList.add('selected');
         }
-      }
-    }
-
-    // Restore editing state
-    if (editingCell && editingCellId) {
-      editingCell.contentEditable = 'true';
-      editingCell.textContent = editingContent;
-      editingCell.focus();
-      
-      // Restore cursor position
-      if (range && selection) {
-        selection.removeAllRanges();
-        selection.addRange(range);
       }
     }
   }
