@@ -3,104 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TypeScript Spreadsheet</title>
+    <title>TypeSheet - Modern Spreadsheet App</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="/src/landing.css">
   </head>
   <body>
-    <div id="app">
-      <!-- Top Bar with Title -->
-      <div class="top-bar">
-        <div class="spreadsheet-icon">
+    <div class="landing-container">
+      <nav class="nav-bar">
+        <div class="logo">
           <span class="material-icons" style="color: #1a73e8">article</span>
+          <span class="logo-text">TypeSheet</span>
         </div>
-        <div class="title-section">
-          <input type="text" class="title-input" value="Untitled spreadsheet" />
-          <div class="title-buttons">
-            <button class="star-button"><span class="material-icons-outlined">star</span></button>
-            <button class="move-button"><span class="material-icons">drive_file_move</span></button>
+        <div id="user-container">
+          <!-- User info will be inserted here -->
+        </div>
+      </nav>
+      
+      <main class="hero-section">
+        <div class="hero-content">
+          <h1>Create and share spreadsheets</h1>
+          <p>A modern spreadsheet application with real-time collaboration</p>
+          <div class="cta-buttons">
+            <button id="github-login-btn" class="github-button">
+              <svg height="20" viewBox="0 0 16 16" width="20" class="github-icon">
+                <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+              </svg>
+              Sign in with GitHub
+            </button>
           </div>
         </div>
-        <div class="top-buttons">
-          <button class="share-button">
-            <span class="material-icons">lock</span>
-            Share
-          </button>
-          <span class="material-icons account-icon">account_circle</span>
-        </div>
-      </div>
-
-      <!-- Menu Bar -->
-      <div class="menu-bar">
-        <div class="menu-items">
-          <button class="menu-item">File</button>
-          <button class="menu-item">Edit</button>
-          <button class="menu-item">View</button>
-          <button class="menu-item">Insert</button>
-          <button class="menu-item">Format</button>
-          <button class="menu-item">Data</button>
-          <button class="menu-item">Tools</button>
-          <button class="menu-item">Extensions</button>
-          <button class="menu-item">Help</button>
-        </div>
-      </div>
-
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <div class="toolbar-group">
-          <button class="tool-btn" title="Undo"><span class="material-icons">undo</span></button>
-          <button class="tool-btn" title="Redo"><span class="material-icons">redo</span></button>
-          <button class="tool-btn" title="Print"><span class="material-icons">print</span></button>
-          <button class="tool-btn" title="Copy format"><span class="material-icons">content_copy</span></button>
-        </div>
-        <div class="toolbar-separator"></div>
-        <div class="toolbar-group">
-          <select class="font-select">
-            <option>Arial</option>
-            <option>Times New Roman</option>
-            <option>Courier New</option>
-          </select>
-          <select class="font-size">
-            <option>10</option>
-            <option selected>11</option>
-            <option>12</option>
-            <option>14</option>
-          </select>
-        </div>
-        <div class="toolbar-separator"></div>
-        <div class="toolbar-group">
-          <button class="tool-btn" title="Bold"><span class="material-icons">format_bold</span></button>
-          <button class="tool-btn" title="Italic"><span class="material-icons">format_italic</span></button>
-          <button class="tool-btn" title="Underline"><span class="material-icons">format_underlined</span></button>
-          <button class="tool-btn" title="Strikethrough"><span class="material-icons">strikethrough_s</span></button>
-          <button class="tool-btn" title="Text color"><span class="material-icons">format_color_text</span></button>
-          <button class="tool-btn" title="Fill color"><span class="material-icons">format_color_fill</span></button>
-        </div>
-        <div class="toolbar-separator"></div>
-        <div class="toolbar-group">
-          <button class="tool-btn" title="Align left"><span class="material-icons">format_align_left</span></button>
-          <button class="tool-btn" title="Align center"><span class="material-icons">format_align_center</span></button>
-          <button class="tool-btn" title="Align right"><span class="material-icons">format_align_right</span></button>
-        </div>
-      </div>
-
-      <!-- Formula Bar -->
-      <div class="formula-bar">
-        <div class="name-box">
-          <input type="text" id="cell-name" readonly />
-        </div>
-        <div class="formula-input">
-          <span class="fx">fx</span>
-          <input type="text" id="formula-input" />
-        </div>
-      </div>
-
-      <div id="spreadsheet-container"></div>
-      <div class="sheet-tabs">
-        <div class="add-sheet">+</div>
-        <div class="tab active">Sheet1</div>
-      </div>
+      </main>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/auth.ts"></script>
   </body>
 </html>

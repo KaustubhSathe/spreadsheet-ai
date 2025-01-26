@@ -1,6 +1,17 @@
-import './style.css';
+import './app.css';
 import { SpreadsheetData, Sheet } from './types';
 import { getCellId } from './utils';
+import { supabase } from './supabase';
+
+// Add auth check at the start
+async function checkAuth() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    window.location.href = '/';
+    return false;
+  }
+  return true;
+}
 
 export class Spreadsheet {
   private container: HTMLElement;
@@ -821,7 +832,11 @@ export class Spreadsheet {
   }
 }
 
-// Only initialize if we're in the browser and not in test environment
+// Initialize app only after auth check
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
-  new Spreadsheet('app');
+  checkAuth().then(isAuthenticated => {
+    if (isAuthenticated) {
+      new Spreadsheet('app');
+    }
+  });
 } 

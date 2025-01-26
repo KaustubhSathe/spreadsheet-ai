@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TypeSheet - Spreadsheet</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Top Bar with Title -->
+      <div class="top-bar">
+        <div class="spreadsheet-icon">
+          <span class="material-icons" style="color: #1a73e8">article</span>
+        </div>
+        <div class="title-section">
+          <input type="text" class="title-input" value="Untitled spreadsheet" />
+          <div class="title-buttons">
+            <button class="star-button"><span class="material-icons-outlined">star</span></button>
+            <button class="move-button"><span class="material-icons">drive_file_move</span></button>
+          </div>
+        </div>
+        <div class="top-buttons">
+          <button class="share-button">
+            <span class="material-icons">lock</span>
+            Share
+          </button>
+          <span class="material-icons account-icon">account_circle</span>
+        </div>
+      </div>
+
+      <!-- Menu Bar -->
+      <div class="menu-bar">
+        <div class="menu-items">
+          <button class="menu-item">File</button>
+          <button class="menu-item">Edit</button>
+          <button class="menu-item">View</button>
+          <button class="menu-item">Insert</button>
+          <button class="menu-item">Format</button>
+          <button class="menu-item">Data</button>
+          <button class="menu-item">Tools</button>
+          <button class="menu-item">Extensions</button>
+          <button class="menu-item">Help</button>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="tool-btn" title="Undo"><span class="material-icons">undo</span></button>
+          <button class="tool-btn" title="Redo"><span class="material-icons">redo</span></button>
+          <button class="tool-btn" title="Print"><span class="material-icons">print</span></button>
+          <button class="tool-btn" title="Copy format"><span class="material-icons">content_copy</span></button>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <select class="font-select">
+            <option>Arial</option>
+            <option>Times New Roman</option>
+            <option>Courier New</option>
+          </select>
+          <select class="font-size">
+            <option>10</option>
+            <option selected>11</option>
+            <option>12</option>
+            <option>14</option>
+          </select>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <button class="tool-btn" title="Bold"><span class="material-icons">format_bold</span></button>
+          <button class="tool-btn" title="Italic"><span class="material-icons">format_italic</span></button>
+          <button class="tool-btn" title="Underline"><span class="material-icons">format_underlined</span></button>
+          <button class="tool-btn" title="Strikethrough"><span class="material-icons">strikethrough_s</span></button>
+          <button class="tool-btn" title="Text color"><span class="material-icons">format_color_text</span></button>
+          <button class="tool-btn" title="Fill color"><span class="material-icons">format_color_fill</span></button>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <button class="tool-btn" title="Align left"><span class="material-icons">format_align_left</span></button>
+          <button class="tool-btn" title="Align center"><span class="material-icons">format_align_center</span></button>
+          <button class="tool-btn" title="Align right"><span class="material-icons">format_align_right</span></button>
+        </div>
+      </div>
+
+      <!-- Formula Bar -->
+      <div class="formula-bar">
+        <div class="name-box">
+          <input type="text" id="cell-name" readonly />
+        </div>
+        <div class="formula-input">
+          <span class="fx">fx</span>
+          <input type="text" id="formula-input" />
+        </div>
+      </div>
+
+      <div id="spreadsheet-container"></div>
+      <div class="sheet-tabs">
+        <div class="add-sheet">+</div>
+        <div class="tab active">Sheet1</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html> 
