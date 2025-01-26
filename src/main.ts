@@ -1,8 +1,8 @@
 import './style.css';
 import { SpreadsheetData, Sheet } from './types';
-import { getCellId, evaluateFormula } from './utils';
+import { getCellId } from './utils';
 
-class Spreadsheet {
+export class Spreadsheet {
   private container: HTMLElement;
   private data: SpreadsheetData = {};
   private activeCell: HTMLElement | null = null;
@@ -70,7 +70,7 @@ class Spreadsheet {
     });
 
     sheetTabs.addEventListener('click', (e) => {
-      const tab = (e.target as HTMLElement).closest('.tab');
+      const tab = (e.target as HTMLElement).closest('.tab') as HTMLElement;
       if (tab && !tab.classList.contains('active')) {
         const sheetId = tab.dataset.sheetId!;
         this.switchSheet(sheetId);
@@ -197,7 +197,7 @@ class Spreadsheet {
   private attachEventListeners(): void {
     // Handle selection start
     this.container.addEventListener('mousedown', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell');
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         // Store the currently editing cell
         const editingCell = this.container.querySelector('.cell[contenteditable="true"]');
@@ -237,7 +237,7 @@ class Spreadsheet {
     // Handle selection drag
     this.container.addEventListener('mousemove', (e) => {
       if (this.isSelecting) {
-        const cell = (e.target as HTMLElement).closest('.cell');
+        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
         if (cell && cell !== this.selectionEnd) {
           this.selectionEnd = cell;
           this.updateSelection();
@@ -252,7 +252,7 @@ class Spreadsheet {
 
     // Handle cell selection on click
     this.container.addEventListener('click', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell');
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         // Don't handle click if we're already editing
         if (cell.contentEditable === 'true') {
@@ -282,7 +282,7 @@ class Spreadsheet {
 
     // Make cell editable on double click
     this.container.addEventListener('dblclick', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell');
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         // Keep the selection state but make the cell editable
         cell.contentEditable = 'true';
@@ -294,7 +294,7 @@ class Spreadsheet {
 
     // Handle cell blur (finish editing)
     this.container.addEventListener('blur', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell');
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         this.finishEditing(cell);
       }
@@ -372,7 +372,7 @@ class Spreadsheet {
     this.data[cellId] = {
       value: value,
       formula: value.startsWith('=') ? value : '',
-      computed: evaluateFormula(value, this.data)
+      computed: this.evaluateFormula(value, this.data)
     };
 
     const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
@@ -394,7 +394,7 @@ class Spreadsheet {
     const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
 
     this.container.addEventListener('focus', (e) => {
-      const cell = (e.target as HTMLElement).closest('td');
+      const cell = (e.target as HTMLElement).closest('td') as HTMLElement;
       if (cell) {
         const cellId = cell.dataset.cellId!;
         cellName.value = cellId;
@@ -508,7 +508,7 @@ class Spreadsheet {
     if (!this.selectionStart || !this.selectionEnd) return;
 
     // Store editing state
-    const editingCell = this.container.querySelector('.cell[contenteditable="true"]');
+    const editingCell = this.container.querySelector('.cell[contenteditable="true"]') as HTMLElement;
     const editingCellId = editingCell?.dataset.cellId;
     const editingContent = editingCell?.textContent || '';
     const selection = window.getSelection();
@@ -558,7 +558,7 @@ class Spreadsheet {
     this.isResizing = true;
     this.resizeStartX = e.clientX;
     this.resizeElement = handle;
-    const column = handle.closest('.column');
+    const column = handle.closest('.column') as HTMLElement;
     if (column) {
       this.initialSize = column.offsetWidth;
     }
@@ -568,7 +568,7 @@ class Spreadsheet {
     this.isResizing = true;
     this.resizeStartY = e.clientY;
     this.resizeElement = handle;
-    const rowContainer = handle.closest('.row-container');
+    const rowContainer = handle.closest('.row-container') as HTMLElement;
     if (rowContainer) {
       this.initialSize = rowContainer.offsetHeight;
     }
@@ -579,7 +579,7 @@ class Spreadsheet {
 
     if (this.resizeElement.classList.contains('col-resize-handle')) {
       // Column resize
-      const column = this.resizeElement.closest('.column');
+      const column = this.resizeElement.closest('.column') as HTMLElement;
       if (column) {
         const deltaX = e.clientX - this.resizeStartX;
         const newWidth = Math.max(50, this.initialSize + deltaX);
@@ -588,7 +588,7 @@ class Spreadsheet {
       }
     } else if (this.resizeElement.classList.contains('row-resize-handle')) {
       // Row resize
-      const rowContainer = this.resizeElement.closest('.row-container');
+      const rowContainer = this.resizeElement.closest('.row-container') as HTMLElement;
       if (rowContainer) {
         const deltaY = e.clientY - this.resizeStartY;
         const newHeight = Math.max(21, this.initialSize + deltaY);
@@ -610,7 +610,29 @@ class Spreadsheet {
       }
     }
   }
+
+  private evaluateFormula(formula: string, data: SpreadsheetData): string {
+    if (!formula.startsWith('=')) {
+      return formula;
+    }
+
+    try {
+      const expression = formula.slice(1);
+      const evaluatedExpression = expression.replace(/[A-Z]\d+/g, (match) => {
+        return data[match]?.computed || '0';
+      });
+      // Check for division by zero before evaluation
+      if (expression.includes('/0')) {
+        return '#DIV/0!';
+      }
+      return eval(evaluatedExpression).toString();
+    } catch (e) {
+      return '#ERROR!';
+    }
+  }
 }
 
-// Initialize the spreadsheet
-new Spreadsheet('app'); 
+// Only initialize if we're in the browser and not in test environment
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+  new Spreadsheet('app');
+} 
