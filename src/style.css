@@ -54,10 +54,11 @@ body {
 
 .grid-container {
   display: flex;
-  overflow: auto;
   width: fit-content;
   box-sizing: border-box;
   background: white;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 #f8f9fa;
 }
 
 .row-numbers {
@@ -132,6 +133,8 @@ body {
   flex: 1;
   overflow: auto;
   position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 #f8f9fa;
 }
 
 /* Add Google Sheets-like hover effect */
@@ -266,4 +269,50 @@ body {
   margin: 0;
   /* Remove the box shadow since we have borders */
   box-shadow: none;
+}
+
+/* Update the scrollbar styles for #spreadsheet-container */
+#spreadsheet-container::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#spreadsheet-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+#spreadsheet-container::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 8px;
+  border: 3px solid #f8f9fa;
+}
+
+#spreadsheet-container::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}
+
+/* Update the scrollbar styles for .grid-container */
+.grid-container::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.grid-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.grid-container::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 8px;
+  border: 3px solid #f8f9fa;
+}
+
+.grid-container::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}
+
+#spreadsheet-container::-webkit-scrollbar-corner {
+  background: #f8f9fa;
 } 
