@@ -67,7 +67,7 @@ describe('Spreadsheet', () => {
       
       // First select A1
       fireEvent.mouseDown(cellA1);
-      cellA1.classList.add('selected'); // Simulate immediate selection
+      cellA1.classList.add('selected');
       fireEvent.mouseUp(cellA1);
       
       // Then shift+click B2
@@ -89,30 +89,41 @@ describe('Spreadsheet', () => {
   describe('Cell Editing', () => {
     it('should make cell editable on double click', () => {
       const cell = container.querySelector('[data-cell-id="A1"]')!;
+      const content = cell.querySelector('.cell-content')!;
       
-      // Just trigger dblclick directly since we're testing the handler
       fireEvent.dblClick(cell);
       
-      expect(cell.getAttribute('contenteditable')).toBe('true');
+      expect(content.getAttribute('contenteditable')).toBe('true');
     });
 
     it('should update cell value after editing', () => {
       const cell = container.querySelector('[data-cell-id="A1"]')!;
+      const content = cell.querySelector('.cell-content')!;
       
       // Make cell editable
-      fireEvent.mouseDown(cell);
-      fireEvent.mouseUp(cell);
-      fireEvent.click(cell);
-      fireEvent.mouseDown(cell);
-      fireEvent.mouseUp(cell);
-      fireEvent.click(cell);
       fireEvent.dblClick(cell);
       
-      // Edit cell
-      cell.textContent = 'test';
-      fireEvent.blur(cell);
+      // Edit cell content
+      content.textContent = 'test';
+      fireEvent.blur(content);
       
-      expect(cell).toHaveTextContent('test');
+      expect(content).toHaveTextContent('test');
+    });
+
+    it('should maintain fill handle while editing', () => {
+      const cell = container.querySelector('[data-cell-id="A1"]')!;
+      const fillHandle = cell.querySelector('.fill-handle')!;
+      
+      // Select the cell first
+      fireEvent.mouseDown(cell);
+      fireEvent.mouseUp(cell);
+      cell.classList.add('active');
+      
+      // Make cell editable
+      fireEvent.dblClick(cell);
+      
+      // Fill handle should still be visible
+      expect(fillHandle).toBeVisible();
     });
   });
 
@@ -144,26 +155,159 @@ describe('Spreadsheet', () => {
   });
 
   describe('Formula Bar', () => {
-    it('should update formula bar when selecting cell', async () => {
+    it('should update formula bar when selecting cell', () => {
       const cell = container.querySelector('[data-cell-id="A1"]')!;
+      const content = cell.querySelector('.cell-content')!;
       const cellName = document.getElementById('cell-name') as HTMLInputElement;
       const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
       
-      await userEvent.click(cell);
+      // Set some content first
+      fireEvent.dblClick(cell);
+      content.textContent = 'test';
+      fireEvent.blur(content);
+      
+      // Select the cell
+      fireEvent.click(cell);
       
       expect(cellName.value).toBe('A1');
-      expect(formulaInput.value).toBe('');
+      expect(formulaInput.value).toBe('test');
     });
 
-    it('should update cell when changing formula', async () => {
+    it('should update cell when changing formula', () => {
       const cell = container.querySelector('[data-cell-id="A1"]')!;
+      const content = cell.querySelector('.cell-content')!;
       const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
       
-      await userEvent.click(cell);
-      await userEvent.type(formulaInput, '=1+1');
+      fireEvent.click(cell);
+      formulaInput.value = '=1+1';
       fireEvent.change(formulaInput);
       
-      expect(cell).toHaveTextContent('2');
+      expect(content).toHaveTextContent('2');
+    });
+
+    it('should show cell range in name box for multiple selection', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellB2 = container.querySelector('[data-cell-id="B2"]')!;
+      const cellName = document.getElementById('cell-name') as HTMLInputElement;
+      
+      // First select A1
+      fireEvent.mouseDown(cellA1);
+      cellA1.classList.add('selected');
+      fireEvent.mouseUp(cellA1);
+      
+      // Then shift+click B2
+      const shiftClickOptions = { shiftKey: true };
+      fireEvent.mouseDown(cellB2, shiftClickOptions);
+      
+      expect(cellName.value).toBe('A1:B2');
+    });
+
+    it('should show single cell ID when one cell is selected', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellName = document.getElementById('cell-name') as HTMLInputElement;
+      
+      fireEvent.mouseDown(cellA1);
+      cellA1.classList.add('selected');
+      fireEvent.mouseUp(cellA1);
+      
+      expect(cellName.value).toBe('A1');
+    });
+
+    it('should show cell range with top-left cell first', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellB2 = container.querySelector('[data-cell-id="B2"]')!;
+      const cellName = document.getElementById('cell-name') as HTMLInputElement;
+      
+      // Test selection from bottom-right to top-left
+      fireEvent.mouseDown(cellB2);
+      cellB2.classList.add('selected');
+      fireEvent.mouseUp(cellB2);
+      
+      const shiftClickOptions = { shiftKey: true };
+      fireEvent.mouseDown(cellA1, shiftClickOptions);
+      
+      // Should still show A1:B2, not B2:A1
+      expect(cellName.value).toBe('A1:B2');
+    });
+  });
+
+  describe('Fill Handle', () => {
+    it('should fill cells when dragging the fill handle', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellA2 = container.querySelector('[data-cell-id="A2"]')!;
+      const contentA1 = cellA1.querySelector('.cell-content')!;
+      const contentA2 = cellA2.querySelector('.cell-content')!;
+      
+      // Set initial value
+      fireEvent.dblClick(cellA1);
+      contentA1.textContent = '1';
+      fireEvent.blur(contentA1);
+      
+      // Select cell to show fill handle
+      fireEvent.mouseDown(cellA1);
+      fireEvent.mouseUp(cellA1);
+      cellA1.classList.add('active');
+      
+      // Start fill drag
+      const fillHandle = cellA1.querySelector('.fill-handle')!;
+      fireEvent.mouseDown(fillHandle);
+      
+      // Drag to A2
+      fireEvent.mouseMove(cellA2);
+      fireEvent.mouseUp(cellA2);
+      
+      // Check if A2 was filled with incremented value
+      expect(contentA2).toHaveTextContent('2');
+    });
+
+    it('should not increment empty cells when filling', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellA2 = container.querySelector('[data-cell-id="A2"]')!;
+      const contentA2 = cellA2.querySelector('.cell-content')!;
+      
+      // Select empty cell
+      fireEvent.mouseDown(cellA1);
+      fireEvent.mouseUp(cellA1);
+      cellA1.classList.add('active');
+      
+      // Start fill drag
+      const fillHandle = cellA1.querySelector('.fill-handle')!;
+      fireEvent.mouseDown(fillHandle);
+      
+      // Drag to A2
+      fireEvent.mouseMove(cellA2);
+      fireEvent.mouseUp(cellA2);
+      
+      // Check if A2 remains empty
+      expect(contentA2).toHaveTextContent('');
+    });
+
+    it('should copy text content when filling', () => {
+      const cellA1 = container.querySelector('[data-cell-id="A1"]')!;
+      const cellA2 = container.querySelector('[data-cell-id="A2"]')!;
+      const contentA1 = cellA1.querySelector('.cell-content')!;
+      const contentA2 = cellA2.querySelector('.cell-content')!;
+      
+      // Set initial text value
+      fireEvent.dblClick(cellA1);
+      contentA1.textContent = 'test';
+      fireEvent.blur(contentA1);
+      
+      // Select cell to show fill handle
+      fireEvent.mouseDown(cellA1);
+      fireEvent.mouseUp(cellA1);
+      cellA1.classList.add('active');
+      
+      // Start fill drag
+      const fillHandle = cellA1.querySelector('.fill-handle')!;
+      fireEvent.mouseDown(fillHandle);
+      
+      // Drag to A2
+      fireEvent.mouseMove(cellA2);
+      fireEvent.mouseUp(cellA2);
+      
+      // Check if A2 was filled with same text
+      expect(contentA2).toHaveTextContent('test');
     });
   });
 }); 

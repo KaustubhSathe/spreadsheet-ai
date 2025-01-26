@@ -98,16 +98,12 @@ body {
 }
 
 .cell {
+  position: relative;
   width: 100%;
   min-width: 100%;
   height: 21px;
   border-bottom: 1px solid #e2e3e3;
-  padding: 0 6px;
-  font-size: 13px;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-right: 1px solid #e2e3e3;
   background: white;
   box-sizing: border-box;
   cursor: default;
@@ -115,24 +111,48 @@ body {
   transition: height 0.1s ease;
 }
 
+.cell-content {
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  padding: 0 6px;
+  font-size: 13px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  box-sizing: border-box;
+  background: inherit;
+}
+
 /* Style for selected cells */
 .cell.selected {
   border: 2px solid #1a73e8;
-  padding: 3px 5px;
+  margin: -1px;
   z-index: 2;
-  position: relative;
   background-color: rgba(26, 115, 232, 0.1);
 }
 
+.cell.selected .cell-content {
+  padding: 0 5px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  top: 1px;
+  left: 1px;
+}
+
 /* Style for cells being edited */
-.cell[contenteditable="true"] {
+.cell-content[contenteditable="true"] {
   cursor: text;
   background-color: white;
   outline: none;
-  border: 2px solid #1a73e8;
-  padding: 3px 5px;
   z-index: 3;
-  position: relative;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
 }
 
 /* Remove the :focus style since we're using .selected */
@@ -638,4 +658,31 @@ body {
 .title-buttons .material-icons,
 .title-buttons .material-icons-outlined {
   font-size: 18px;
+}
+
+/* Update fill handle styles */
+.cell .fill-handle {
+  display: none; /* Hide by default */
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #1a73e8;
+  right: -3px;
+  bottom: -3px;
+  cursor: crosshair;
+  border: 1px solid white;
+  border-radius: 50%; /* Make it circular */
+  z-index: 3;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1); /* Add subtle shadow */
+}
+
+/* Show fill handle only on the active selected cell */
+.cell.selected.active .fill-handle {
+  display: block;
+}
+
+/* Show fill preview during drag */
+.cell.fill-preview {
+  background-color: rgba(26, 115, 232, 0.1);
+  border: 1px dashed #1a73e8;
 } 

@@ -19,6 +19,9 @@ export class Spreadsheet {
   private resizeStartY: number = 0;
   private resizeElement: HTMLElement | null = null;
   private initialSize: number = 0;
+  private isFilling: boolean = false;
+  private fillStartCell: HTMLElement | null = null;
+  private fillEndCell: HTMLElement | null = null;
 
   constructor(containerId: string) {
     this.container = document.getElementById('spreadsheet-container')!;
@@ -173,11 +176,9 @@ export class Spreadsheet {
       
       // Create cells for this column
       for (let row = 0; row < this.rows; row++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
+        const cell = this.createCell();
         const cellId = getCellId(row, col);
         cell.dataset.cellId = cellId;
-        cell.contentEditable = 'false';
         column.appendChild(cell);
 
         // Initialize cell data
@@ -194,15 +195,39 @@ export class Spreadsheet {
     this.container.appendChild(grid);
   }
 
+  private createCell(): HTMLElement {
+    // Create wrapper div
+    const cellWrapper = document.createElement('div');
+    cellWrapper.className = 'cell';
+    
+    // Create content div
+    const content = document.createElement('div');
+    content.className = 'cell-content';
+    content.contentEditable = 'false';
+    
+    // Create fill handle div
+    const fillHandle = document.createElement('div');
+    fillHandle.className = 'fill-handle';
+    
+    // Append both to wrapper
+    cellWrapper.appendChild(content);
+    cellWrapper.appendChild(fillHandle);
+    
+    return cellWrapper;
+  }
+
   private attachEventListeners(): void {
     // Handle selection start
     this.container.addEventListener('mousedown', (e) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         // First, handle any active editing
-        const editingCell = this.container.querySelector('.cell[contenteditable="true"]') as HTMLElement;
-        if (editingCell && editingCell !== cell) {
-          this.finishEditing(editingCell);
+        const editingContent = this.container.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
+        if (editingContent) {
+          const editingCell = editingContent.closest('.cell') as HTMLElement;
+          if (editingCell !== cell) {
+            this.finishEditing(editingCell);
+          }
         }
 
         this.isSelecting = true;
@@ -213,17 +238,20 @@ export class Spreadsheet {
           this.selectionStart = this.selectionAnchor;
           this.selectionEnd = cell;
           this.updateSelection(); // Update selection immediately
-        } else if (!cell.hasAttribute('contenteditable') || cell.getAttribute('contenteditable') === 'false') {
-          // Only start new selection if cell isn't being edited
-          this.clearSelection();
-          this.selectionStart = cell;
-          this.selectionEnd = cell;
-          this.selectionAnchor = cell;
-          cell.classList.add('selected'); // Add selected class immediately
+        } else {
+          const content = cell.querySelector('.cell-content') as HTMLElement;
+          if (content.contentEditable !== 'true') {
+            // Only start new selection if cell isn't being edited
+            this.clearSelection();
+            this.selectionStart = cell;
+            this.selectionEnd = cell;
+            this.selectionAnchor = cell;
+            cell.classList.add('selected', 'active');
+          }
         }
         
         this.activeCell = cell;
-        this.updateFormulaBar(); // Update formula bar with selection range
+        this.updateFormulaBar();
       }
     });
 
@@ -248,22 +276,23 @@ export class Spreadsheet {
     this.container.addEventListener('click', (e) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
+        const content = cell.querySelector('.cell-content') as HTMLElement;
         // Don't handle click if we're already editing
-        if (cell.contentEditable === 'true') {
+        if (content.contentEditable === 'true') {
           return;
         }
 
-        // Remove selected class from previously selected cell
-        const prevSelected = this.container.querySelector('.cell.selected');
-        if (prevSelected) {
-          prevSelected.classList.remove('selected');
-        }
+        // Remove selected and active classes from previously selected cells
+        const prevSelected = this.container.querySelectorAll('.cell.selected');
+        prevSelected.forEach(cell => {
+          cell.classList.remove('selected', 'active');
+        });
         
         this.activeCell = cell;
-        cell.classList.add('selected');
+        cell.classList.add('selected', 'active');
         
         const cellId = cell.dataset.cellId!;
-        this.updateFormulaBar(cellId); // Update formula bar for single cell
+        this.updateFormulaBar(cellId);
       }
     });
 
@@ -271,19 +300,19 @@ export class Spreadsheet {
     this.container.addEventListener('dblclick', (e) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
-        // Keep the selection state but make the cell editable
-        cell.setAttribute('contenteditable', 'true');
+        const content = cell.querySelector('.cell-content') as HTMLElement;
+        content.setAttribute('contenteditable', 'true');
         const cellId = cell.dataset.cellId!;
-        cell.textContent = this.data[cellId].formula || this.data[cellId].value;
-        cell.focus();
+        content.textContent = this.data[cellId].formula || this.data[cellId].value;
+        content.focus();
       }
     });
 
     // Handle cell blur (finish editing)
     this.container.addEventListener('blur', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-      if (cell) {
-        cell.setAttribute('contenteditable', 'false');
+      const content = e.target as HTMLElement;
+      if (content.classList.contains('cell-content')) {
+        const cell = content.parentElement as HTMLElement;
         this.finishEditing(cell);
       }
     }, true);
@@ -291,10 +320,11 @@ export class Spreadsheet {
     // Move keydown listener to document level
     document.addEventListener('keydown', (e) => {
       // If no cell is selected or we're editing, don't handle navigation
-      if (!this.activeCell || this.activeCell.contentEditable === 'true') {
-        if (this.activeCell?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
+      const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
+      if (!this.activeCell || activeContent?.contentEditable === 'true') {
+        if (activeContent?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          this.activeCell.blur();
+          activeContent.blur();
           
           // Move to the next row after finishing edit
           const currentCellId = this.activeCell.dataset.cellId!;
@@ -305,11 +335,11 @@ export class Spreadsheet {
           
           if (nextCell) {
             // Remove selected from current cell
-            this.activeCell.classList.remove('selected');
+            this.activeCell.classList.remove('selected', 'active');
             // Select next cell
-            nextCell.classList.add('selected');
+            nextCell.classList.add('selected', 'active');
             this.activeCell = nextCell;
-            this.updateFormulaBar(nextCellId); // Update formula bar for single cell
+            this.updateFormulaBar(nextCellId);
           }
         }
         return;
@@ -339,29 +369,71 @@ export class Spreadsheet {
       this.isResizing = false;
       this.resizeElement = null;
     });
+
+    // Handle fill handle events
+    this.container.addEventListener('mousedown', (e) => {
+      const fillHandle = (e.target as HTMLElement).closest('.fill-handle');
+      if (fillHandle) {
+        e.stopPropagation(); // Prevent cell selection
+        this.isFilling = true;
+        this.fillStartCell = fillHandle.parentElement as HTMLElement;
+      }
+    });
+
+    this.container.addEventListener('mousemove', (e) => {
+      if (this.isFilling) {
+        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+        if (cell && cell !== this.fillEndCell) {
+          // Remove previous preview
+          if (this.fillEndCell) {
+            this.clearFillPreview();
+          }
+          
+          this.fillEndCell = cell;
+          this.showFillPreview();
+        }
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (this.isFilling) {
+        this.completeFill();
+        this.isFilling = false;
+        this.fillStartCell = null;
+        this.fillEndCell = null;
+      }
+    });
   }
 
   private finishEditing(cell: HTMLElement): void {
-    cell.contentEditable = 'false';
+    const content = cell.querySelector('.cell-content') as HTMLElement;
+    content.contentEditable = 'false';
     const cellId = cell.dataset.cellId!;
-    const newValue = cell.textContent || '';
+    const newValue = content.textContent || '';
     this.updateCell(cellId, newValue);
     this.recalculateAll();
     
-    // Show computed value but maintain selection state
-    cell.textContent = this.data[cellId].computed;
+    // Show computed value
+    content.textContent = this.data[cellId].computed;
   }
 
   private updateCell(cellId: string, value: string): void {
-    this.data[cellId] = {
-      value: value,
-      formula: value.startsWith('=') ? value : '',
-      computed: this.evaluateFormula(value, this.data)
-    };
-
+    this.data[cellId].value = value;
+    if (value.startsWith('=')) {
+      this.data[cellId].formula = value;
+      this.data[cellId].computed = this.evaluateFormula(value, this.data);
+    } else {
+      this.data[cellId].formula = '';
+      this.data[cellId].computed = value;
+    }
+    
+    // Update cell display
     const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
     if (cell) {
-      cell.textContent = this.data[cellId].computed;
+      const content = cell.querySelector('.cell-content');
+      if (content) {
+        content.textContent = this.data[cellId].computed;
+      }
     }
   }
 
@@ -397,8 +469,9 @@ export class Spreadsheet {
   }
 
   private handleKeyNavigation(e: KeyboardEvent): void {
+    const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
     // Skip navigation if we're editing a cell
-    if (!this.activeCell || this.activeCell.contentEditable === 'true') return;
+    if (!this.activeCell || activeContent?.contentEditable === 'true') return;
     
     const currentCellId = this.activeCell.dataset.cellId!;
     const [col, row] = this.parseCellId(currentCellId);
@@ -479,7 +552,7 @@ export class Spreadsheet {
     
     selectedCells.forEach(cell => {
       if (cell !== editingCell) {
-        cell.classList.remove('selected');
+        cell.classList.remove('selected', 'active'); // Remove both classes
       }
     });
   }
@@ -509,6 +582,11 @@ export class Spreadsheet {
         const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
         if (cell) {
           cell.classList.add('selected');
+          // Make the last cell in the selection active
+          if (row === endRow && col === endCol) {
+            cell.classList.add('active');
+            this.activeCell = cell as HTMLElement;
+          }
         }
       }
     }
@@ -628,6 +706,81 @@ export class Spreadsheet {
       cellName.value = cellId;
       formulaInput.value = this.data[cellId].formula || this.data[cellId].value;
     }
+  }
+
+  private clearFillPreview(): void {
+    const previewCells = this.container.querySelectorAll('.fill-preview');
+    previewCells.forEach(cell => cell.classList.remove('fill-preview'));
+  }
+
+  private showFillPreview(): void {
+    if (!this.fillStartCell || !this.fillEndCell) return;
+
+    const startId = this.fillStartCell.dataset.cellId!;
+    const endId = this.fillEndCell.dataset.cellId!;
+    const [startCol, startRow] = this.parseCellId(startId);
+    const [endCol, endRow] = this.parseCellId(endId);
+
+    // Calculate fill range
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minCol = Math.min(startCol, endCol);
+    const maxCol = Math.max(startCol, endCol);
+
+    // Show preview for all cells in range
+    for (let row = minRow; row <= maxRow; row++) {
+      for (let col = minCol; col <= maxCol; col++) {
+        const cellId = getCellId(row, col);
+        const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
+        if (cell) {
+          cell.classList.add('fill-preview');
+        }
+      }
+    }
+  }
+
+  private completeFill(): void {
+    if (!this.fillStartCell || !this.fillEndCell) return;
+
+    const startId = this.fillStartCell.dataset.cellId!;
+    const endId = this.fillEndCell.dataset.cellId!;
+    const startValue = this.data[startId].value;
+    
+    // Only treat as number if there's an actual value and it's numeric
+    const isNumber = startValue !== '' && !isNaN(Number(startValue));
+    const startNum = Number(startValue);
+
+    const [startCol, startRow] = this.parseCellId(startId);
+    const [endCol, endRow] = this.parseCellId(endId);
+    
+    // Calculate fill range
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minCol = Math.min(startCol, endCol);
+    const maxCol = Math.max(startCol, endCol);
+
+    // Fill cells
+    for (let row = minRow; row <= maxRow; row++) {
+      for (let col = minCol; col <= maxCol; col++) {
+        const cellId = getCellId(row, col);
+        if (cellId !== startId) {
+          let value = startValue;
+          
+          // Only increment if original cell had a number
+          if (isNumber) {
+            const offset = (row - startRow) + (col - startCol);
+            value = (startNum + offset).toString();
+          } else if (startValue === '') {
+            // Keep target cells empty if source was empty
+            value = '';
+          }
+          
+          this.updateCell(cellId, value);
+        }
+      }
+    }
+
+    this.clearFillPreview();
   }
 }
 
