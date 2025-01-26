@@ -223,6 +223,7 @@ export class Spreadsheet {
         }
         
         this.activeCell = cell;
+        this.updateFormulaBar(); // Update formula bar with selection range
       }
     });
 
@@ -233,6 +234,7 @@ export class Spreadsheet {
         if (cell && cell !== this.selectionEnd) {
           this.selectionEnd = cell;
           this.updateSelection();
+          this.updateFormulaBar(); // Update formula bar while dragging
         }
       }
     });
@@ -261,14 +263,7 @@ export class Spreadsheet {
         cell.classList.add('selected');
         
         const cellId = cell.dataset.cellId!;
-        // Update formula bar
-        const cellName = document.getElementById('cell-name') as HTMLInputElement;
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        cellName.value = cellId;
-        formulaInput.value = this.data[cellId].formula || this.data[cellId].value;
-        
-        // Show computed value
-        cell.textContent = this.data[cellId].computed;
+        this.updateFormulaBar(cellId); // Update formula bar for single cell
       }
     });
 
@@ -314,11 +309,7 @@ export class Spreadsheet {
             // Select next cell
             nextCell.classList.add('selected');
             this.activeCell = nextCell;
-            // Update formula bar
-            const cellName = document.getElementById('cell-name') as HTMLInputElement;
-            const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-            cellName.value = nextCellId;
-            formulaInput.value = this.data[nextCellId].formula || this.data[nextCellId].value;
+            this.updateFormulaBar(nextCellId); // Update formula bar for single cell
           }
         }
         return;
@@ -460,6 +451,7 @@ export class Spreadsheet {
         this.selectionStart = this.selectionAnchor;
         this.selectionEnd = nextCell;
         this.updateSelection();
+        this.updateFormulaBar(); // Update formula bar for shift selection
       } else {
         // For normal navigation, clear selection and select single cell
         this.clearSelection();
@@ -467,15 +459,10 @@ export class Spreadsheet {
         this.selectionEnd = nextCell;
         this.selectionAnchor = nextCell;
         nextCell.classList.add('selected');
+        this.updateFormulaBar(nextCellId); // Update formula bar for single cell
       }
       
       this.activeCell = nextCell;
-      
-      // Update formula bar
-      const cellName = document.getElementById('cell-name') as HTMLInputElement;
-      const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-      cellName.value = nextCellId;
-      formulaInput.value = this.data[nextCellId].formula || this.data[nextCellId].value;
     }
   }
 
@@ -601,6 +588,45 @@ export class Spreadsheet {
       return eval(evaluatedExpression).toString();
     } catch (e) {
       return '#ERROR!';
+    }
+  }
+
+  private updateFormulaBar(cellId?: string): void {
+    const cellName = document.getElementById('cell-name') as HTMLInputElement;
+    const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+
+    if (this.selectionStart && this.selectionEnd) {
+      const startId = this.selectionStart.dataset.cellId!;
+      const endId = this.selectionEnd.dataset.cellId!;
+      
+      if (startId === endId) {
+        cellName.value = startId;
+      } else {
+        // Calculate which cell should be displayed first
+        const [startCol, startRow] = this.parseCellId(startId);
+        const [endCol, endRow] = this.parseCellId(endId);
+        
+        const minCell = getCellId(
+          Math.min(startRow, endRow),
+          Math.min(startCol, endCol)
+        );
+        const maxCell = getCellId(
+          Math.max(startRow, endRow),
+          Math.max(startCol, endCol)
+        );
+        
+        cellName.value = `${minCell}:${maxCell}`;
+      }
+      
+      // Show formula/value of active cell
+      if (this.activeCell) {
+        const activeCellId = this.activeCell.dataset.cellId!;
+        formulaInput.value = this.data[activeCellId].formula || this.data[activeCellId].value;
+      }
+    } else if (cellId) {
+      // Single cell selection
+      cellName.value = cellId;
+      formulaInput.value = this.data[cellId].formula || this.data[cellId].value;
     }
   }
 }
