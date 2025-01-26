@@ -39,9 +39,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 2;
-  min-width: 100px;
-  width: 100px;
-  height: 25px;
+  width: 100%;
+  height: 100%;
   border-bottom: 2px solid #e2e3e3;
   font-size: 11px;
   color: #666;
@@ -74,7 +73,7 @@ body {
 .row-number {
   width: 40px;
   min-width: 40px;
-  height: 21px;
+  height: 100%;
   border-bottom: 1px solid #e2e3e3;
   font-size: 11px;
   color: #666;
@@ -82,6 +81,7 @@ body {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  flex: 1;
 }
 
 .column {
@@ -90,6 +90,7 @@ body {
   border-right: 1px solid #e2e3e3;
   width: 100px;
   min-width: 100px;
+  transition: width 0.1s ease;
 }
 
 .column:last-child {
@@ -97,8 +98,8 @@ body {
 }
 
 .cell {
-  width: 100px;
-  min-width: 100px;
+  width: 100%;
+  min-width: 100%;
   height: 21px;
   border-bottom: 1px solid #e2e3e3;
   padding: 0 6px;
@@ -109,14 +110,34 @@ body {
   text-overflow: ellipsis;
   background: white;
   box-sizing: border-box;
+  cursor: default;
+  user-select: none;
+  transition: height 0.1s ease;
 }
 
-.cell:focus {
+/* Style for selected cells */
+.cell.selected {
+  border: 2px solid #1a73e8;
+  padding: 3px 5px;
+  z-index: 2;
+  position: relative;
+  background-color: rgba(26, 115, 232, 0.1);
+}
+
+/* Style for cells being edited */
+.cell[contenteditable="true"] {
+  cursor: text;
+  background-color: white;
   outline: none;
   border: 2px solid #1a73e8;
   padding: 3px 5px;
   z-index: 3;
   position: relative;
+}
+
+/* Remove the :focus style since we're using .selected */
+.cell:focus {
+  outline: none;
 }
 
 .cell:hover {
@@ -315,4 +336,67 @@ body {
 
 #spreadsheet-container::-webkit-scrollbar-corner {
   background: #f8f9fa;
+}
+
+.header-container {
+  position: relative;
+  width: 100%;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+}
+
+.row-container {
+  position: relative;
+  width: 100%;
+  height: 21px;
+  display: flex;
+  align-items: center;
+}
+
+.row-resize-handle {
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 4;
+}
+
+.col-resize-handle:hover,
+.row-resize-handle:hover {
+  background-color: #1a73e8;
+}
+
+.col-resize-handle:hover::after,
+.row-resize-handle:hover::after {
+  content: '';
+  position: absolute;
+  background: #1a73e8;
+}
+
+.col-resize-handle:hover::after {
+  width: 2px;
+  height: 100%;
+  left: 2px;
+  top: 0;
+}
+
+.row-resize-handle:hover::after {
+  width: 100%;
+  height: 2px;
+  top: 2px;
+  left: 0;
 } 
