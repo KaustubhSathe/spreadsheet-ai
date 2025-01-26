@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TypeScript Spreadsheet</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="toolbar">
+        <div class="toolbar-section">
+          <button class="tool-btn">File</button>
+          <button class="tool-btn">Edit</button>
+          <button class="tool-btn">View</button>
+          <button class="tool-btn">Insert</button>
+          <button class="tool-btn">Format</button>
+          <button class="tool-btn">Data</button>
+          <button class="tool-btn">Tools</button>
+          <button class="tool-btn">Extensions</button>
+          <button class="tool-btn">Help</button>
+        </div>
+      </div>
+      <div class="formula-bar">
+        <div class="name-box">
+          <input type="text" id="cell-name" readonly />
+        </div>
+        <div class="formula-input">
+          <span class="fx">fx</span>
+          <input type="text" id="formula-input" />
+        </div>
+      </div>
+      <div id="spreadsheet-container"></div>
+      <div class="sheet-tabs">
+        <div class="add-sheet">+</div>
+        <div class="tab active">Sheet1</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
