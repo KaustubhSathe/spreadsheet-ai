@@ -41,13 +41,57 @@ export class Spreadsheet {
   private isFilling: boolean = false;
   private fillStartCell: HTMLElement | null = null;
   private fillEndCell: HTMLElement | null = null;
+  private title: string = '';
 
   constructor(containerId: string) {
     this.container = document.getElementById('spreadsheet-container')!;
     this.init();
+    this.loadSpreadsheet();
     this.setupFormulaBar();
     this.setupSheetTabs();
     this.setupProfileDropdown();
+  }
+
+  async loadSpreadsheet() {
+    // Get spreadsheet ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    
+    if (id) {
+      try {
+        // Fetch spreadsheet data
+        const { data: spreadsheet, error } = await supabase
+          .from('spreadsheets')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        if (spreadsheet) {
+          // Load the spreadsheet data
+          this.title = spreadsheet.title;
+          document.querySelector('.title-input')?.setAttribute('value', this.title);
+          
+          // Load cell data if it exists
+          if (spreadsheet.data) {
+            Object.entries(spreadsheet.data).forEach(([cellId, value]) => {
+              const cell = document.querySelector(`[data-cell-id="${cellId}"] .cell-content`);
+              if (cell) {
+                cell.textContent = value as string;
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading spreadsheet:', error);
+        // Redirect to dashboard if spreadsheet not found
+        window.location.href = '/dashboard';
+      }
+    } else {
+      // No ID provided, redirect to dashboard
+      window.location.href = '/dashboard';
+    }
   }
 
   private init(): void {
@@ -367,6 +411,11 @@ export class Spreadsheet {
       
       // Handle navigation
       this.handleKeyNavigation(e);
+
+      // Add keyboard event listener for delete
+      if (e.key === 'Delete' && !this.isEditing()) {
+        this.deleteSelectedCells();
+      }
     });
 
     // Add resize event listeners
@@ -870,6 +919,23 @@ export class Spreadsheet {
         }
       });
     }
+  }
+
+  private deleteSelectedCells(): void {
+    const selectedCells = this.container.querySelectorAll('.cell.selected .cell-content');
+    selectedCells.forEach(cell => {
+      cell.textContent = '';
+      const cellId = (cell.parentElement as HTMLElement).dataset.cellId!;
+      this.data[cellId] = {
+        value: '',
+        formula: '',
+        computed: ''
+      };
+    });
+  }
+
+  private isEditing(): boolean {
+    return !!this.container.querySelector('.cell-content[contenteditable="true"]');
   }
 }
 

@@ -11,7 +11,7 @@ async function handleGitHubLogin() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/app`
+        redirectTo: `${window.location.origin}/dashboard`
       }
     });
 
@@ -64,14 +64,17 @@ async function checkUser() {
         window.location.href = '/';
       });
 
-      // Redirect to app if on landing page
+      // Redirect to dashboard if on landing page
       if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-        window.location.href = '/app';
+        window.location.href = '/dashboard';
       }
     }
   } else {
-    // If not logged in and on app page, redirect to landing
-    if (window.location.pathname === '/app' || window.location.pathname === '/app.html') {
+    // If not logged in and on protected pages, redirect to landing
+    if (window.location.pathname === '/app' || 
+        window.location.pathname === '/app.html' || 
+        window.location.pathname === '/dashboard' || 
+        window.location.pathname === '/dashboard.html') {
       window.location.href = '/';
       return;
     }
@@ -90,7 +93,7 @@ checkUser();
 // Listen for auth state changes
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN') {
-    window.location.href = '/app';
+    window.location.href = '/dashboard';
   } else if (event === 'SIGNED_OUT') {
     window.location.href = '/';
   }

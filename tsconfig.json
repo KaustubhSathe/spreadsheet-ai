@@ -18,7 +18,16 @@
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "5.0",
+    "allowJs": true,
+    "checkJs": false,
+    "paths": {
+      "https://deno.land/*": ["./types/*"],
+      "https://esm.sh/*": ["./types/*"]
+    }
   },
-  "include": ["src", "tests/setup.ts"]
+  "include": ["src", "tests/setup.ts", "supabase/functions/**/*", "types/**/*"]
 }
+
+

@@ -7,6 +7,14 @@
     {
       "source": "/app/",
       "destination": "/app.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/dashboard.html"
     }
   ],
   "buildCommand": "npm run build",
