@@ -1,8 +1,32 @@
+/* Add CSS variables at the root level */
+:root {
+  /* Primary colors */
+  --primary-blue: #1a73e8;
+  --primary-blue-hover: #1557b0;
+  --primary-blue-transparent: rgba(26, 115, 232, 0.1);
+  
+  /* Neutral colors */
+  --border-color: #e2e3e3;
+  --border-dark: #e0e0e0;
+  --background-hover: #f1f3f4;
+  --background-light: #f8f9fa;
+  
+  /* Text colors */
+  --text-primary: #202124;
+  --text-secondary: #444746;
+  --text-tertiary: #666666;
+  
+  /* UI colors */
+  --scrollbar-thumb: #dadce0;
+  --scrollbar-thumb-hover: #bdc1c6;
+  --white: #ffffff;
+}
+
 body {
   margin: 0;
   padding: 0;
   font-family: 'Google Sans', Arial, sans-serif;
-  background: #f8f9fa;
+  background: var(--background-light);
 }
 
 #app {
@@ -14,7 +38,7 @@ body {
   flex-direction: column;
   background: white;
   user-select: none;
-  border: 1px solid #e2e3e3;
+  border: 1px solid var(--border-color);
 }
 
 .header-row {
@@ -29,9 +53,9 @@ body {
   width: 40px;
   min-width: 40px;
   height: 25px;
-  border-bottom: 2px solid #e2e3e3;
-  border-right: 2px solid #e2e3e3;
-  background: #f8f9fa;
+  border-bottom: 2px solid var(--border-color);
+  border-right: 2px solid var(--border-color);
+  background: var(--background-light);
   box-sizing: border-box;
 }
 
@@ -41,14 +65,14 @@ body {
   z-index: 2;
   width: 100%;
   height: 100%;
-  border-bottom: 2px solid #e2e3e3;
+  border-bottom: 2px solid var(--border-color);
   font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  background: #f8f9fa;
+  background: var(--background-light);
 }
 
 .grid-container {
@@ -57,15 +81,15 @@ body {
   box-sizing: border-box;
   background: white;
   scrollbar-width: thin;
-  scrollbar-color: #dadce0 #f8f9fa;
+  scrollbar-color: var(--scrollbar-thumb) var(--background-light);
 }
 
 .row-numbers {
   position: sticky;
   left: 0;
   z-index: 5;
-  background: #f8f9fa;
-  border-right: 2px solid #e2e3e3;
+  background: var(--background-light);
+  border-right: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
 }
@@ -74,9 +98,9 @@ body {
   width: 40px;
   min-width: 40px;
   height: 100%;
-  border-bottom: 1px solid #e2e3e3;
+  border-bottom: 1px solid var(--border-color);
   font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -87,7 +111,7 @@ body {
 .column {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e2e3e3;
+  border-right: 1px solid var(--border-color);
   width: 100px;
   min-width: 100px;
   transition: width 0.1s ease;
@@ -102,9 +126,9 @@ body {
   width: 100%;
   min-width: 100%;
   height: 21px;
-  border-bottom: 1px solid #e2e3e3;
-  border-right: 1px solid #e2e3e3;
-  background: white;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  background: var(--white);
   box-sizing: border-box;
   cursor: default;
   user-select: none;
@@ -116,7 +140,7 @@ body {
   height: calc(100% - 2px);
   padding: 0 6px;
   font-size: 13px;
-  color: #333;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,10 +155,10 @@ body {
 
 /* Style for selected cells */
 .cell.selected {
-  border: 2px solid #1a73e8;
+  border: 2px solid var(--primary-blue);
   margin: -1px;
   z-index: 2;
-  background-color: rgba(26, 115, 232, 0.1);
+  background-color: var(--primary-blue-transparent);
 }
 
 .cell.selected .cell-content {
@@ -148,7 +172,7 @@ body {
 /* Style for cells being edited */
 .cell-content[contenteditable="true"] {
   cursor: text;
-  background-color: white;
+  background-color: var(--white);
   outline: none;
   z-index: 3;
   width: calc(100% - 2px);
@@ -161,7 +185,7 @@ body {
 }
 
 .cell:hover {
-  background-color: #f1f3f4;
+  background-color: var(--background-hover);
 }
 
 /* Remove the old table styles */
@@ -175,19 +199,19 @@ body {
   overflow: auto;
   position: relative;
   scrollbar-width: thin;
-  scrollbar-color: #dadce0 #f8f9fa;
+  scrollbar-color: var(--scrollbar-thumb) var(--background-light);
 }
 
 /* Add Google Sheets-like hover effect */
 .spreadsheet td:hover {
-  background-color: #f1f3f4;
+  background-color: var(--background-hover);
 }
 
 /* Add to existing styles */
 .toolbar {
   padding: 4px 8px;
-  border-bottom: 1px solid #e2e3e3;
-  background: white;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--white);
 }
 
 .toolbar-section {
@@ -200,28 +224,28 @@ body {
   border: none;
   background: none;
   font-size: 13px;
-  color: #333;
+  color: var(--text-secondary);
   cursor: pointer;
   border-radius: 4px;
 }
 
 .tool-btn:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 .formula-bar {
   display: flex;
   align-items: center;
   padding: 4px 8px;
-  background: white;
-  border-bottom: 1px solid #e2e3e3;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-color);
   height: 30px;
   gap: 8px;
 }
 
 .name-box {
   width: 80px;
-  border: 1px solid #e2e3e3;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -240,15 +264,15 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
-  border: 1px solid #e2e3e3;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
 .formula-input .fx {
   padding: 0 8px;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
-  border-right: 1px solid #e2e3e3;
+  border-right: 1px solid var(--border-color);
 }
 
 .formula-input input {
@@ -262,8 +286,8 @@ body {
 .sheet-tabs {
   display: flex;
   align-items: center;
-  background: white;
-  border-top: 1px solid #e2e3e3;
+  background: var(--white);
+  border-top: 1px solid var(--border-color);
   height: 36px;
   padding: 0 8px;
 }
@@ -271,15 +295,15 @@ body {
 .sheet-tabs .tab {
   padding: 8px 16px;
   font-size: 13px;
-  color: #333;
+  color: var(--text-primary);
   cursor: pointer;
-  border-right: 1px solid #e2e3e3;
-  background: #f8f9fa;
+  border-right: 1px solid var(--border-color);
+  background: var(--background-light);
 }
 
 .sheet-tabs .tab.active {
-  background: white;
-  border-bottom: 2px solid #1a73e8;
+  background: var(--white);
+  border-bottom: 2px solid var(--primary-blue);
 }
 
 .sheet-tabs .add-sheet {
@@ -289,13 +313,13 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #666;
+  color: var(--text-tertiary);
   margin-right: 8px;
   border-radius: 4px;
 }
 
 .sheet-tabs .add-sheet:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 /* Update existing styles */
@@ -319,18 +343,18 @@ body {
 }
 
 #spreadsheet-container::-webkit-scrollbar-track {
-  background: #f8f9fa;
+  background: var(--background-light);
   border-radius: 8px;
 }
 
 #spreadsheet-container::-webkit-scrollbar-thumb {
-  background: #dadce0;
+  background: var(--scrollbar-thumb);
   border-radius: 8px;
-  border: 3px solid #f8f9fa;
+  border: 3px solid var(--background-light);
 }
 
 #spreadsheet-container::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Update the scrollbar styles for .grid-container */
@@ -340,22 +364,22 @@ body {
 }
 
 .grid-container::-webkit-scrollbar-track {
-  background: #f8f9fa;
+  background: var(--background-light);
   border-radius: 8px;
 }
 
 .grid-container::-webkit-scrollbar-thumb {
-  background: #dadce0;
+  background: var(--scrollbar-thumb);
   border-radius: 8px;
-  border: 3px solid #f8f9fa;
+  border: 3px solid var(--background-light);
 }
 
 .grid-container::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
+  background: var(--scrollbar-thumb-hover);
 }
 
 #spreadsheet-container::-webkit-scrollbar-corner {
-  background: #f8f9fa;
+  background: var(--background-light);
 }
 
 .header-container {
@@ -397,14 +421,14 @@ body {
 
 .col-resize-handle:hover,
 .row-resize-handle:hover {
-  background-color: #1a73e8;
+  background-color: var(--primary-blue);
 }
 
 .col-resize-handle:hover::after,
 .row-resize-handle:hover::after {
   content: '';
   position: absolute;
-  background: #1a73e8;
+  background: var(--primary-blue);
 }
 
 .col-resize-handle:hover::after {
@@ -427,8 +451,8 @@ body {
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--white);
 }
 
 .spreadsheet-icon {
@@ -450,12 +474,12 @@ body {
 }
 
 .title-input:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 .title-input:focus {
-  background: white;
-  outline: 1px solid #1a73e8;
+  background: var(--white);
+  outline: 1px solid var(--primary-blue);
 }
 
 .title-buttons {
@@ -472,7 +496,7 @@ body {
 }
 
 .star-button:hover, .move-button:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 .top-buttons {
@@ -482,8 +506,8 @@ body {
 }
 
 .share-button {
-  background: #1a73e8;
-  color: white;
+  background: var(--primary-blue);
+  color: var(--white);
   border: none;
   padding: 8px 24px;
   border-radius: 4px;
@@ -492,7 +516,7 @@ body {
 }
 
 .share-button:hover {
-  background: #1557b0;
+  background: var(--primary-blue-hover);
 }
 
 .profile-pic {
@@ -502,8 +526,8 @@ body {
 
 .menu-bar {
   padding: 4px 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-dark);
 }
 
 .menu-items {
@@ -518,19 +542,19 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .menu-item:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-dark);
   gap: 16px;
 }
 
@@ -542,7 +566,7 @@ body {
 .toolbar-separator {
   width: 1px;
   height: 24px;
-  background: #e0e0e0;
+  background: var(--border-dark);
 }
 
 .tool-btn {
@@ -551,18 +575,18 @@ body {
   padding: 6px;
   border-radius: 4px;
   cursor: pointer;
-  color: #444746;
+  color: var(--text-secondary);
 }
 
 .tool-btn:hover {
-  background: #f1f3f4;
+  background: var(--background-hover);
 }
 
 .font-select, .font-size {
   padding: 4px 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: white;
+  background: var(--white);
 }
 
 /* Update formula bar styles */
@@ -570,8 +594,8 @@ body {
   display: flex;
   align-items: center;
   padding: 4px 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-color);
   gap: 8px;
 }
 
@@ -582,7 +606,7 @@ body {
 .name-box input {
   width: 100%;
   padding: 4px 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
@@ -591,13 +615,13 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 4px 8px;
 }
 
 .fx {
-  color: #444746;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -611,7 +635,7 @@ body {
 /* Add Material Icons styling */
 .material-icons {
   font-size: 20px;
-  color: #444746;
+  color: var(--text-secondary);
 }
 
 .share-button {
@@ -622,7 +646,7 @@ body {
 
 .share-button .material-icons {
   font-size: 16px;
-  color: white;
+  color: var(--white);
 }
 
 .account-icon {
@@ -643,7 +667,7 @@ body {
 }
 
 .tool-btn:hover .material-icons {
-  color: #1a73e8;
+  color: var(--primary-blue);
 }
 
 /* Update existing styles */
@@ -664,14 +688,14 @@ body {
 .cell .fill-handle {
   display: none; /* Hide by default */
   position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #1a73e8;
-  right: -3px;
-  bottom: -3px;
+  width: 8px;
+  height: 8px;
+  background: var(--primary-blue);
+  right: -4px;
+  bottom: -4px;
   cursor: crosshair;
-  border: 1px solid white;
-  border-radius: 50%; /* Make it circular */
+  border: 1px solid var(--white);
+  border-radius: 100%; /* Make it circular */
   z-index: 3;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1); /* Add subtle shadow */
 }
@@ -681,8 +705,14 @@ body {
   display: block;
 }
 
-/* Show fill preview during drag */
+/* Update fill preview styles */
 .cell.fill-preview {
-  background-color: rgba(26, 115, 232, 0.1);
-  border: 1px dashed #1a73e8;
+  background-color: transparent !important; /* Override any existing background */
+  border: 1px dashed var(--primary-blue);
+}
+
+/* Ensure selected cells don't show highlight during fill preview */
+.cell.selected.fill-preview {
+  background-color: transparent !important;
+  border: 1px dashed var(--primary-blue);
 } 

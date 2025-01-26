@@ -716,23 +716,43 @@ export class Spreadsheet {
   private showFillPreview(): void {
     if (!this.fillStartCell || !this.fillEndCell) return;
 
+    // First clear any existing selection highlight except for the start cell
+    const selectedCells = this.container.querySelectorAll('.cell.selected');
+    selectedCells.forEach(cell => {
+      if (cell !== this.fillStartCell) {
+        cell.classList.remove('selected', 'active');
+      }
+    });
+
     const startId = this.fillStartCell.dataset.cellId!;
     const endId = this.fillEndCell.dataset.cellId!;
     const [startCol, startRow] = this.parseCellId(startId);
     const [endCol, endRow] = this.parseCellId(endId);
 
-    // Calculate fill range
-    const minRow = Math.min(startRow, endRow);
-    const maxRow = Math.max(startRow, endRow);
-    const minCol = Math.min(startCol, endCol);
-    const maxCol = Math.max(startCol, endCol);
+    // Determine if we're filling horizontally or vertically
+    const isHorizontal = Math.abs(endCol - startCol) > Math.abs(endRow - startRow);
 
-    // Show preview for all cells in range
-    for (let row = minRow; row <= maxRow; row++) {
+    if (isHorizontal) {
+      // Horizontal fill - keep same row
+      const minCol = Math.min(startCol, endCol);
+      const maxCol = Math.max(startCol, endCol);
+      
       for (let col = minCol; col <= maxCol; col++) {
-        const cellId = getCellId(row, col);
+        const cellId = getCellId(startRow, col);
         const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
-        if (cell) {
+        if (cell && cell !== this.fillStartCell) {
+          cell.classList.add('fill-preview');
+        }
+      }
+    } else {
+      // Vertical fill - keep same column
+      const minRow = Math.min(startRow, endRow);
+      const maxRow = Math.max(startRow, endRow);
+      
+      for (let row = minRow; row <= maxRow; row++) {
+        const cellId = getCellId(row, startCol);
+        const cell = this.container.querySelector(`[data-cell-id="${cellId}"]`);
+        if (cell && cell !== this.fillStartCell) {
           cell.classList.add('fill-preview');
         }
       }
@@ -746,32 +766,49 @@ export class Spreadsheet {
     const endId = this.fillEndCell.dataset.cellId!;
     const startValue = this.data[startId].value;
     
-    // Only treat as number if there's an actual value and it's numeric
     const isNumber = startValue !== '' && !isNaN(Number(startValue));
     const startNum = Number(startValue);
 
     const [startCol, startRow] = this.parseCellId(startId);
     const [endCol, endRow] = this.parseCellId(endId);
     
-    // Calculate fill range
-    const minRow = Math.min(startRow, endRow);
-    const maxRow = Math.max(startRow, endRow);
-    const minCol = Math.min(startCol, endCol);
-    const maxCol = Math.max(startCol, endCol);
+    // Determine if we're filling horizontally or vertically
+    const isHorizontal = Math.abs(endCol - startCol) > Math.abs(endRow - startRow);
 
-    // Fill cells
-    for (let row = minRow; row <= maxRow; row++) {
+    if (isHorizontal) {
+      // Horizontal fill
+      const minCol = Math.min(startCol, endCol);
+      const maxCol = Math.max(startCol, endCol);
+      
       for (let col = minCol; col <= maxCol; col++) {
-        const cellId = getCellId(row, col);
+        const cellId = getCellId(startRow, col);
         if (cellId !== startId) {
           let value = startValue;
           
-          // Only increment if original cell had a number
           if (isNumber) {
-            const offset = (row - startRow) + (col - startCol);
+            const offset = col - startCol;
             value = (startNum + offset).toString();
           } else if (startValue === '') {
-            // Keep target cells empty if source was empty
+            value = '';
+          }
+          
+          this.updateCell(cellId, value);
+        }
+      }
+    } else {
+      // Vertical fill
+      const minRow = Math.min(startRow, endRow);
+      const maxRow = Math.max(startRow, endRow);
+      
+      for (let row = minRow; row <= maxRow; row++) {
+        const cellId = getCellId(row, startCol);
+        if (cellId !== startId) {
+          let value = startValue;
+          
+          if (isNumber) {
+            const offset = row - startRow;
+            value = (startNum + offset).toString();
+          } else if (startValue === '') {
             value = '';
           }
           
