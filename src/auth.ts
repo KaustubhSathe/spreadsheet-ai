@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 async function handleGitHubLogin() {
   try {
-    const loginButton = document.getElementById('github-login-btn');
+    const loginButton = document.getElementById('github-login-btn') as HTMLButtonElement;
     if (loginButton) {
       loginButton.disabled = true;
       loginButton.textContent = 'Signing in...';
@@ -21,7 +21,7 @@ async function handleGitHubLogin() {
     alert('Error logging in. Please try again.');
     
     // Reset button state
-    const loginButton = document.getElementById('github-login-btn');
+    const loginButton = document.getElementById('github-login-btn') as HTMLButtonElement;
     if (loginButton) {
       loginButton.disabled = false;
       loginButton.innerHTML = `
