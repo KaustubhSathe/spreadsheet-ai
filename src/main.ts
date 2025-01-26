@@ -13,6 +13,14 @@ async function checkAuth() {
   return true;
 }
 
+// Add this function after checkAuth()
+async function handleLogout() {
+  const { error } = await supabase.auth.signOut();
+  if (!error) {
+    window.location.href = '/';
+  }
+}
+
 export class Spreadsheet {
   private container: HTMLElement;
   private data: SpreadsheetData = {};
@@ -39,6 +47,7 @@ export class Spreadsheet {
     this.init();
     this.setupFormulaBar();
     this.setupSheetTabs();
+    this.setupProfileDropdown();
   }
 
   private init(): void {
@@ -829,6 +838,38 @@ export class Spreadsheet {
     }
 
     this.clearFillPreview();
+  }
+
+  // Add this new method
+  private setupProfileDropdown(): void {
+    const accountIcon = document.querySelector('.account-icon');
+    const dropdown = document.querySelector('.profile-dropdown');
+    
+    if (!accountIcon || !dropdown) return;
+
+    // Toggle dropdown on click
+    accountIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('show');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target as Node)) {
+        dropdown.classList.remove('show');
+      }
+    });
+
+    // Handle logout
+    const logoutButton = dropdown.querySelector('.logout-button');
+    if (logoutButton) {
+      logoutButton.addEventListener('click', async () => {
+        const { error } = await supabase.auth.signOut();
+        if (!error) {
+          window.location.href = '/';
+        }
+      });
+    }
   }
 }
 

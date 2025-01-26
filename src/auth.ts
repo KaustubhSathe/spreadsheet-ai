@@ -42,31 +42,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Update the checkUser function
 async function checkUser() {
   const { data: { user } } = await supabase.auth.getUser();
-  const userContainer = document.getElementById('user-container');
-
-  if (!userContainer) return;
 
   if (user) {
     // If user is logged in, show profile
-    userContainer.innerHTML = `
-      <div class="user-profile">
-        <img src="${user.user_metadata.avatar_url}" alt="Profile" />
-        <span>${user.user_metadata.name}</span>
-      </div>
-      <button id="logout-button" class="logout-button">Sign Out</button>
-    `;
-    
-    // Add logout handler
-    document.getElementById('logout-button')?.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      window.location.href = '/';
-    });
+    const userContainer = document.getElementById('user-container');
+    if (userContainer) {
+      userContainer.innerHTML = `
+        <div class="user-profile">
+          <img src="${user.user_metadata.avatar_url}" alt="Profile" />
+          <span>${user.user_metadata.name}</span>
+        </div>
+        <button id="logout-button" class="logout-button">Sign Out</button>
+      `;
+      
+      // Add logout handler
+      document.getElementById('logout-button')?.addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+      });
 
-    // Redirect to app if on landing page
-    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-      window.location.href = '/app';
+      // Redirect to app if on landing page
+      if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+        window.location.href = '/app';
+      }
     }
   } else {
     // If not logged in and on app page, redirect to landing
@@ -76,7 +77,10 @@ async function checkUser() {
     }
 
     // Clear the user container when not logged in
-    userContainer.innerHTML = '';
+    const userContainer = document.getElementById('user-container');
+    if (userContainer) {
+      userContainer.innerHTML = '';
+    }
   }
 }
 
