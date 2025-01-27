@@ -112,8 +112,55 @@ export class Spreadsheet {
     }
   }
 
+  private async addSheet() {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      const sheetNumber = this.sheets.length + 1;
+      const newSheet: Sheet = {
+        id: crypto.randomUUID(),
+        title: `Sheet${sheetNumber}`,
+        data: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null,
+        user_id: session.user.id
+      };
+      
+      this.sheets.push(newSheet);
+      this.activeSheetId = parseInt(this.hf.addSheet(newSheet.title));
+      this.data = newSheet.data;
+      
+      // Initialize empty cells for the new sheet
+      for (let row = 0; row < this.rows; row++) {
+        for (let col = 0; col < this.cols; col++) {
+          const cellId = getCellId(row, col);
+          this.data[cellId] = {
+            value: '',
+            formula: '',
+            computed: ''
+          };
+        }
+      }
+
+      this.updateSheetTabs();
+    } catch (error) {
+      console.error('Error creating new sheet:', error);
+      alert('Failed to create new sheet. Please try again.');
+    }
+  }
+
   private setupSheetTabs(): void {
     const sheetTabs = document.querySelector('.sheet-tabs') as HTMLElement;
+    const addSheetButton = document.querySelector('.add-sheet') as HTMLElement;
+
+    // Add sheet button handler
+    addSheetButton.addEventListener('click', () => {
+      this.addSheet();
+    });
 
     const renderSheet = () => {
       // Clear existing cells

@@ -47,14 +47,17 @@ serve(async (req: Request) => {
       }
     });
 
-    const { data: sheet, error: verifyError } = await supabaseClient
+    const { data: spreadsheet, error: verifyError } = await supabaseClient
       .from('spreadsheets')
-      .select('id')
+      .select(`
+        id,
+        sheets!inner (id)
+      `)
       .eq('id', id)
       .eq('user_id', userId)
       .single();
 
-    if (verifyError || !sheet) {
+    if (verifyError || !spreadsheet) {
       throw new Error('Spreadsheet not found or access denied');
     }
 

@@ -43,28 +43,37 @@ serve(async (req: Request) => {
 
     let query = supabaseClient
       .from('spreadsheets')
-      .select('*')
+      .select(`
+        id,
+        title,
+        user_id,
+        created_at,
+        updated_at,
+        deleted_at,
+        sheets (
+          id,
+          data,
+          created_at,
+          updated_at,
+          deleted_at
+        )
+      `)
       .eq('user_id', userId)
       .is('deleted_at', null);
 
     if (id) {
-      // Get single spreadsheet
-      const { data, error } = await query
-        .eq('id', id)
-        .single();
-
+      // Get specific spreadsheet with its sheets
+      const { data, error } = await query.eq('id', id).single();
       if (error) throw error;
       if (!data) throw new Error('Spreadsheet not found');
 
-      return new Response(JSON.stringify([data]), {
+      return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     } else {
-      // Get all spreadsheets
-      const { data, error } = await query
-        .order('created_at', { ascending: false });
-
+      // Get all spreadsheets with their sheets
+      const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
 
       return new Response(JSON.stringify(data), {
