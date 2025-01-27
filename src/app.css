@@ -790,4 +790,9 @@ body {
   font-size: 20px;
   margin-right: 4px;
   color: var(--text-secondary);
+}
+
+.cell-content.error {
+  background-color: #ffebee;
+  border: 1px solid #ef5350;
 } 
