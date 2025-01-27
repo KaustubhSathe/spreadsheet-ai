@@ -1,5 +1,5 @@
 import { supabase, supabaseAnonKey } from './supabase';
-import { Sheet } from './types';
+import { SpreadSheet } from './types';
 import { checkAuth, handleLogout } from './utils/auth';
 
 interface Spreadsheet {
@@ -22,21 +22,23 @@ async function loadSpreadsheets() {
         Authorization: `Bearer ${session.access_token}`,
         'apikey': supabaseAnonKey,
       }
-    }) as { data: Sheet[], error: any };
+    }) as { data: SpreadSheet[], error: any };
+
+    console.log(spreadsheets);
 
     if (error) throw error;
 
     const list = document.getElementById('spreadsheets-list');
     if (!list) return;
 
-    list.innerHTML = spreadsheets.map((sheet: Sheet) => `
+    list.innerHTML = spreadsheets.map((spreadsheet: SpreadSheet) => `
       <div class="spreadsheet-card">
-        <div class="card-content" onclick="window.location.href='/app?id=${sheet.id}'">
-          <div class="spreadsheet-title">${sheet.title}</div>
+        <div class="card-content" onclick="window.location.href='/app?id=${spreadsheet.id}'">
+          <div class="spreadsheet-title">${spreadsheet.title}</div>
           <div class="spreadsheet-date">
-            ${new Date(sheet.created_at).toLocaleDateString()}
+            ${new Date(spreadsheet.created_at).toLocaleDateString()}
           </div>
-          <button class="delete-btn" data-sheet-id="${sheet.id}" onclick="event.stopPropagation()">
+          <button class="delete-btn" data-sheet-id="${spreadsheet.id}" onclick="event.stopPropagation()">
             <span class="material-icons">delete</span>
           </button>
         </div>

@@ -29,6 +29,12 @@ serve(async (req: Request) => {
       throw new Error('Invalid token - no user ID');
     }
 
+    const { spreadsheetId, title, sheetId, data } = await req.json();
+    
+    if (!spreadsheetId || !sheetId) {
+      throw new Error('Spreadsheet ID and Sheet ID are required');
+    }
+
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
@@ -37,51 +43,35 @@ serve(async (req: Request) => {
       }
     });
 
-    // Get spreadsheet ID from URL if provided
-    const url = new URL(req.url);
-    const id = url.searchParams.get('id');
+    // Update spreadsheet title if provided
+    if (title) {
+      const { error: spreadsheetError } = await supabaseClient
+        .from('spreadsheets')
+        .update({
+          title,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', spreadsheetId)
+        .eq('user_id', userId);
 
-    let query = supabaseClient
-      .from('spreadsheets')
-      .select(`
-        id,
-        title,
-        user_id,
-        created_at,
-        updated_at,
-        deleted_at,
-        sheets (
-          id,
-          sheet_number,
-          data,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-      `)
-      .eq('user_id', userId)
-      .is('deleted_at', null);
-
-    if (id) {
-      // Get specific spreadsheet with its sheets
-      const { data, error } = await query.eq('id', id).single();
-      if (error) throw error;
-      if (!data) throw new Error('Spreadsheet not found');
-
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    } else {
-      // Get all spreadsheets with their sheets
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
+      if (spreadsheetError) throw spreadsheetError;
     }
+
+    // Update sheet data
+    const { error: sheetError } = await supabaseClient
+      .from('sheets')
+      .update({
+        data,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', sheetId);
+
+    if (sheetError) throw sheetError;
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

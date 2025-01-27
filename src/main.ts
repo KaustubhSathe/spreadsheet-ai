@@ -1,5 +1,5 @@
 import './app.css';
-import { SpreadsheetData, Sheet, Cell } from './types';
+import { SpreadsheetData, Sheet, Cell, SpreadSheet } from './types';
 import { getCellId } from './utils/grid';
 import { supabase, supabaseAnonKey } from './supabase';
 import { HyperFormula } from 'hyperformula';
@@ -11,7 +11,7 @@ export class Spreadsheet {
   private activeCell: HTMLElement | null = null;
   private rows: number = 50;
   private cols: number = 26;
-  private sheets: Sheet[] = [];
+  private spreadsheet: SpreadSheet | null = null;
   private activeSheetId: number = 0;
   private isSelecting: boolean = false;
   private selectionStart: HTMLElement | null = null;
@@ -36,8 +36,7 @@ export class Spreadsheet {
       maxColumns: 26,
       maxRows: 50
     });
-    // Add a sheet and store its ID as a number
-    this.activeSheetId = parseInt(this.hf.addSheet('Sheet1'));
+    this.activeSheetId = 1;
     this.init();
   }
 
@@ -61,47 +60,35 @@ export class Spreadsheet {
           throw new Error('No active session');
         }
 
-        const { data: spreadsheets, error } = await supabase.functions.invoke(`get-spreadsheet?id=${id}`, {
+        const { data: spreadsheet, error } = await supabase.functions.invoke(`get-spreadsheet?id=${id}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${session.access_token}`,
             'apikey': supabaseAnonKey,
           }
-        }) as { data: Sheet[], error: any };
+        });
 
         if (error) throw error;
 
-        const spreadsheet = spreadsheets[0]; // Get first item since we know it's an array with one item
         if (spreadsheet) {
+          this.spreadsheet = spreadsheet;
           this.title = spreadsheet.title;
           document.querySelector('.title-input')?.setAttribute('value', this.title);
           
-          if (spreadsheet.data) {
-            // First register all cells with HyperFormula
-            Object.entries(spreadsheet.data).forEach(([cellId, cellData]: [string, Cell]) => {
-              const { row, col } = this.parseCellId(cellId);
-              if (cellData.formula) {
-                this.hf.setCellContents({ sheet: 0, row, col }, cellData.formula);
-              } else {
-                this.hf.setCellContents({ sheet: 0, row, col }, cellData.value);
-              }
-            });
+          // Initialize HyperFormula with all sheets
+          spreadsheet.sheets.forEach((sheet, index) => {
+              this.hf.addSheet(`Sheet${sheet.sheet_number}`);
+          });
 
-            // Then update UI with computed values
-            Object.entries(spreadsheet.data).forEach(([cellId, cellData]: [string, Cell]) => {
-              const cell = document.querySelector(`[data-cell-id="${cellId}"] .cell-content`);
-              if (cell) {
-                const { row, col } = this.parseCellId(cellId);
-                const computed = this.hf.getCellValue({ sheet: 0, row, col });
-                cell.textContent = computed?.toString() || '';
-        this.data[cellId] = {
-                  value: cellData.value,
-                  formula: cellData.formula,
-                  computed: computed?.toString() || ''
-                };
-              }
-            });
+          // Find and set sheet with sheet_number 1 as active
+          const firstSheet = spreadsheet.sheets.find(s => s.sheet_number === 1);
+          if (firstSheet) {
+            this.activeSheetId = 0; // HyperFormula index for first sheet
+            this.data = firstSheet.data || {};
           }
+
+          this.updateSheetTabs();
+          this.renderSheet();
         }
       } catch (error) {
         console.error('Error loading spreadsheet:', error);
@@ -114,96 +101,72 @@ export class Spreadsheet {
 
   private async addSheet() {
     try {
+      if (!this.spreadsheet) return;
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session) {
         throw new Error('No active session');
       }
 
-      const sheetNumber = this.sheets.length + 1;
-      const newSheet: Sheet = {
-        id: crypto.randomUUID(),
-        title: `Sheet${sheetNumber}`,
-        data: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        user_id: session.user.id
-      };
-      
-      this.sheets.push(newSheet);
-      this.activeSheetId = parseInt(this.hf.addSheet(newSheet.title));
-      this.data = newSheet.data;
-      
-      // Initialize empty cells for the new sheet
-      for (let row = 0; row < this.rows; row++) {
-        for (let col = 0; col < this.cols; col++) {
-          const cellId = getCellId(row, col);
-          this.data[cellId] = {
-            value: '',
-            formula: '',
-            computed: ''
-          };
+      const { data: sheet, error } = await supabase.functions.invoke('create-sheet', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: {
+          spreadsheetId: this.spreadsheet.id
         }
-      }
+      });
 
+      if (error) throw error;
+
+      this.spreadsheet.sheets.push(sheet);
+      // Convert database sheet_number (1-based) to HyperFormula index (0-based)
+      this.activeSheetId = sheet.sheet_number - 1;
+      this.hf.addSheet(`Sheet${sheet.sheet_number}`);
+      this.data = {};
+      
       this.updateSheetTabs();
+      this.renderSheet();
     } catch (error) {
       console.error('Error creating new sheet:', error);
       alert('Failed to create new sheet. Please try again.');
     }
   }
 
-  private setupSheetTabs(): void {
-    const sheetTabs = document.querySelector('.sheet-tabs') as HTMLElement;
-    const addSheetButton = document.querySelector('.add-sheet') as HTMLElement;
-
-    // Add sheet button handler
-    addSheetButton.addEventListener('click', () => {
-      this.addSheet();
-    });
-
-    const renderSheet = () => {
-      // Clear existing cells
-      const cells = this.container.querySelectorAll('td');
-      cells.forEach(cell => {
-        const cellId = cell.dataset.cellId!;
-        cell.textContent = this.data[cellId]?.computed || '';
-      });
-    };
-
-    const updateSheetTabs = () => {
+  private updateSheetTabs(): void {
+    if (!this.spreadsheet) return;
+    
     const tabsContainer = document.querySelector('.sheet-tabs') as HTMLElement;
     
-    // Remove all existing tabs
+    // Remove all existing tabs except add button
     tabsContainer.querySelectorAll('.tab').forEach(tab => tab.remove());
     
-    // Add tabs for each sheet after the add button
-    this.sheets.forEach(sheet => {
+    // Sort sheets by sheet_number and add tabs
+    const sortedSheets = [...this.spreadsheet.sheets].sort((a, b) => a.sheet_number - b.sheet_number);
+    sortedSheets.forEach((sheet) => {
       const tab = document.createElement('div');
-        tab.className = `tab${sheet.id === this.sheets[this.activeSheetId].id ? ' active' : ''}`;
-        tab.textContent = sheet.title;
+      // Convert database sheet_number to array index for comparison
+      const sheetIndex = sheet.sheet_number - 1;
+      tab.className = `tab${sheetIndex === this.activeSheetId ? ' active' : ''}`;
+      // Use actual sheet_number for display
+      tab.textContent = `Sheet${sheet.sheet_number}`;
       tab.dataset.sheetId = sheet.id;
       tabsContainer.appendChild(tab);
-      });
-    };
-
-    const switchSheet = (sheetId: string) => {
-      const sheet = this.sheets.find(s => s.id === sheetId);
-      if (sheet) {
-        this.activeSheetId = parseInt(this.hf.addSheet(sheet.title));
-        this.data = sheet.data;
-        updateSheetTabs();
-        renderSheet();
-      }
-    };
-
-    sheetTabs.addEventListener('click', (e) => {
-      const tab = (e.target as HTMLElement).closest('.tab') as HTMLElement;
-      if (tab && !tab.classList.contains('active')) {
-        const sheetId = tab.dataset.sheetId!;
-        switchSheet(sheetId);
-      }
     });
+  }
+
+  private switchSheet(sheetId: string): void {
+    if (!this.spreadsheet) return;
+    
+    const sheet = this.spreadsheet.sheets.find(s => s.id === sheetId);
+    if (sheet) {
+      this.activeSheetId = sheet.sheet_number - 1;
+      this.data = sheet.data || {};
+      this.updateSheetTabs();
+      this.renderSheet();
+    }
   }
 
   private setupFormulaBar(): void {
@@ -874,41 +837,21 @@ export class Spreadsheet {
   }
 
   private updateFormulaBar(cellId?: string): void {
-    const cellName = document.getElementById('cell-name') as HTMLInputElement;
     const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+    const cellName = document.getElementById('cell-name') as HTMLInputElement;
 
-    if (this.selectionStart && this.selectionEnd) {
-      const startId = this.selectionStart.dataset.cellId!;
-      const endId = this.selectionEnd.dataset.cellId!;
-      
-      if (startId === endId) {
-        cellName.value = startId;
-      } else {
-        // Calculate which cell should be displayed first
-        const { col: startCol, row: startRow } = this.parseCellId(startId);
-        const { col: endCol, row: endRow } = this.parseCellId(endId);
-        
-        const minCell = getCellId(
-          Math.min(startRow, endRow),
-          Math.min(startCol, endCol)
-        );
-        const maxCell = getCellId(
-          Math.max(startRow, endRow),
-          Math.max(startCol, endCol)
-        );
-        
-        cellName.value = `${minCell}:${maxCell}`;
-      }
-      
-      // Show formula/value of active cell
-      if (this.activeCell) {
-        const activeCellId = this.activeCell.dataset.cellId!;
-        formulaInput.value = this.data[activeCellId].formula || this.data[activeCellId].value;
-      }
-    } else if (cellId) {
-      // Single cell selection
-      cellName.value = cellId;
-      formulaInput.value = this.data[cellId].formula || this.data[cellId].value;
+    if (!this.activeCell && !cellId) return;
+
+    const activeCellId = cellId || this.activeCell?.dataset.cellId;
+    if (!activeCellId) return;
+
+    cellName.value = activeCellId;
+    
+    const cellData = this.data[activeCellId];
+    if (cellData) {
+      formulaInput.value = cellData.formula || cellData.value || '';
+    } else {
+      formulaInput.value = '';
     }
   }
 
@@ -1074,20 +1017,30 @@ export class Spreadsheet {
   }
 
   private async saveSpreadsheet(): Promise<void> {
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id');
+    if (!this.spreadsheet) return;
     
-    if (!id) return;
-
     try {
-      const { error } = await supabase
-        .from('spreadsheets')
-        .update({
-          title: this.title ?? 'Untitled spreadsheet',
-          data: this.data ?? {},
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('No active session');
+      }
+
+      const currentSheet = this.spreadsheet.sheets.find(s => s.sheet_number - 1 === this.activeSheetId);
+      if (!currentSheet) throw new Error('Current sheet not found');
+
+      const { error } = await supabase.functions.invoke('save-spreadsheet', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: {
+          spreadsheetId: this.spreadsheet.id,
+          title: this.title,
+          sheetId: currentSheet.id,
+          data: this.data
+        }
+      });
 
       if (error) throw error;
       
@@ -1120,6 +1073,50 @@ export class Spreadsheet {
       console.error('Error saving spreadsheet:', error);
       alert('Failed to save spreadsheet. Please try again.');
     }
+  }
+
+  private renderSheet(): void {
+    if (!this.spreadsheet) return;
+    
+    const sheet = this.spreadsheet.sheets[this.activeSheetId];
+    if (!sheet) return;
+
+    // Clear existing cells
+    const cells = this.container.querySelectorAll('.cell');
+    cells.forEach(cell => {
+      const cellId = (cell as HTMLElement).dataset.cellId!;
+      const content = cell.querySelector('.cell-content') as HTMLElement;
+      content.textContent = this.data[cellId]?.computed || '';
+    });
+
+    // Also update HyperFormula with the new sheet's data
+    Object.entries(this.data).forEach(([cellId, cellData]) => {
+      const { row, col } = this.parseCellId(cellId);
+      if (cellData.formula) {
+        this.hf.setCellContents({ sheet: this.activeSheetId, row, col }, cellData.formula);
+      } else {
+        this.hf.setCellContents({ sheet: this.activeSheetId, row, col }, cellData.value);
+      }
+    });
+  }
+
+  private setupSheetTabs(): void {
+    const sheetTabs = document.querySelector('.sheet-tabs') as HTMLElement;
+    const addSheetButton = document.querySelector('.add-sheet') as HTMLElement;
+
+    // Add sheet button handler
+    addSheetButton.addEventListener('click', () => {
+      this.addSheet();
+    });
+
+    // Handle sheet switching
+    sheetTabs.addEventListener('click', (e) => {
+      const tab = (e.target as HTMLElement).closest('.tab') as HTMLElement;
+      if (tab && !tab.classList.contains('active')) {
+        const sheetId = tab.dataset.sheetId!;
+        this.switchSheet(sheetId);
+      }
+    });
   }
 }
 

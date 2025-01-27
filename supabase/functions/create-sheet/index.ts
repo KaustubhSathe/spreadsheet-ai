@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import * as jose from "https://deno.land/x/jose@v4.9.1/index.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.21.0";
+import * as jose from "https://deno.land/x/jose@v4.13.1/index.ts";
 
 const supabaseUrl = 'https://lmrpcvsshrhlqeupdldg.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtcnBjdnNzaHJobHFldXBkbGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MDEzMjMsImV4cCI6MjA1MzQ3NzMyM30.MVdGDbhCqZW0pGc9SVsuZtmYFsgovRe_pim4eDyVaFY';
@@ -29,6 +29,13 @@ serve(async (req: Request) => {
       throw new Error('Invalid token - no user ID');
     }
 
+    const body = await req.json();
+    const { spreadsheetId } = body;
+    
+    if (!spreadsheetId) {
+      throw new Error('Spreadsheet ID is required');
+    }
+
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
@@ -37,36 +44,43 @@ serve(async (req: Request) => {
       }
     });
 
-    // First create the spreadsheet
-    const { data: spreadsheet, error: spreadsheetError } = await supabaseClient
+    // Verify spreadsheet exists and belongs to user
+    const { data: spreadsheet, error: verifyError } = await supabaseClient
       .from('spreadsheets')
-      .insert([{
-        title: 'Untitled spreadsheet',
-        user_id: userId
-      }])
-      .select()
+      .select('id')
+      .eq('id', spreadsheetId)
+      .eq('user_id', userId)
       .single();
 
-    if (spreadsheetError) throw spreadsheetError;
+    if (verifyError || !spreadsheet) {
+      throw new Error('Spreadsheet not found or access denied');
+    }
 
-    // Then create the initial sheet
-    const { data: sheet, error: sheetError } = await supabaseClient
+    // Inside the create-sheet function, get the next sheet number
+    const { data: lastSheet, error: countError } = await supabaseClient
+      .from('sheets')
+      .select('sheet_number')
+      .eq('spreadsheet_id', spreadsheetId)
+      .order('sheet_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextSheetNumber = (lastSheet?.sheet_number || 0) + 1;
+
+    // Create new sheet with sheet_number
+    const { data: sheet, error } = await supabaseClient
       .from('sheets')
       .insert([{
-        spreadsheet_id: spreadsheet.id,
+        spreadsheet_id: spreadsheetId,
         data: {},
-        sheet_number: 1
+        sheet_number: nextSheetNumber
       }])
       .select()
       .single();
 
-    if (sheetError) throw sheetError;
+    if (error) throw error;
 
-    // Return the full spreadsheet structure
-    return new Response(JSON.stringify({
-      ...spreadsheet,
-      sheets: [sheet]
-    }), {
+    return new Response(JSON.stringify(sheet), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
@@ -74,6 +88,6 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 401,
-    })
+    });
   }
-})
+}); 
