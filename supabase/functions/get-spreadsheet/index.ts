@@ -37,28 +37,45 @@ serve(async (req: Request) => {
       }
     });
 
-    const { data, error } = await supabaseClient
+    // Get spreadsheet ID from URL if provided
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+
+    let query = supabaseClient
       .from('spreadsheets')
-      .insert([
-        {
-          title: 'Untitled spreadsheet',
-          user_id: userId,
-          data: {},
-        },
-      ])
-      .select()
-      .single();
+      .select('*')
+      .eq('user_id', userId)
+      .is('deleted_at', null);
 
-    if (error) throw error;
+    if (id) {
+      // Get single spreadsheet
+      const { data, error } = await query
+        .eq('id', id)
+        .single();
 
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+      if (error) throw error;
+      if (!data) throw new Error('Spreadsheet not found');
+
+      return new Response(JSON.stringify([data]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } else {
+      // Get all spreadsheets
+      const { data, error } = await query
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 401,
-    })
+    });
   }
-})
+}); 

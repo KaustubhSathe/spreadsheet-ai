@@ -29,29 +29,47 @@ serve(async (req: Request) => {
       throw new Error('Invalid token - no user ID');
     }
 
+    const body = await req.json();
+    const { id } = body;
+    
+    if (!id) {
+      throw new Error('Spreadsheet ID is required');
+    }
+
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
           Authorization: `Bearer ${token}`
         }
+      },
+      auth: {
+        persistSession: false
       }
     });
 
-    const { data, error } = await supabaseClient
+    const { data: sheet, error: verifyError } = await supabaseClient
       .from('spreadsheets')
-      .insert([
-        {
-          title: 'Untitled spreadsheet',
-          user_id: userId,
-          data: {},
-        },
-      ])
-      .select()
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
       .single();
+
+    if (verifyError || !sheet) {
+      throw new Error('Spreadsheet not found or access denied');
+    }
+
+    const { error } = await supabaseClient
+      .from('spreadsheets')
+      .update({ 
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) throw error;
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
@@ -61,4 +79,4 @@ serve(async (req: Request) => {
       status: 401,
     })
   }
-})
+}) 

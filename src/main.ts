@@ -1,7 +1,7 @@
 import './app.css';
-import { SpreadsheetData, Sheet } from './types';
+import { SpreadsheetData, Sheet, Cell } from './types';
 import { getCellId } from './utils';
-import { supabase } from './supabase';
+import { supabase, supabaseAnonKey } from './supabase';
 
 // Add auth check at the start
 async function checkAuth() {
@@ -53,43 +53,50 @@ export class Spreadsheet {
   }
 
   async loadSpreadsheet() {
-    // Get spreadsheet ID from URL
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     
     if (id) {
       try {
-        // Fetch spreadsheet data
-        const { data: spreadsheet, error } = await supabase
-          .from('spreadsheets')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          throw new Error('No active session');
+        }
+
+        const { data: spreadsheets, error } = await supabase.functions.invoke(`get-spreadsheet?id=${id}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'apikey': supabaseAnonKey,
+          }
+        }) as { data: Sheet[], error: any };
 
         if (error) throw error;
 
+        const spreadsheet = spreadsheets[0]; // Get first item since we know it's an array with one item
         if (spreadsheet) {
-          // Load the spreadsheet data
           this.title = spreadsheet.title;
           document.querySelector('.title-input')?.setAttribute('value', this.title);
           
-          // Load cell data if it exists
           if (spreadsheet.data) {
-            Object.entries(spreadsheet.data).forEach(([cellId, value]) => {
+            Object.entries(spreadsheet.data).forEach(([cellId, cellData]: [string, Cell]) => {
               const cell = document.querySelector(`[data-cell-id="${cellId}"] .cell-content`);
               if (cell) {
-                cell.textContent = value as string;
+                cell.textContent = cellData.value;
+                this.data[cellId] = {
+                  value: cellData.value,
+                  formula: cellData.formula,
+                  computed: cellData.computed
+                };
               }
             });
           }
         }
       } catch (error) {
         console.error('Error loading spreadsheet:', error);
-        // Redirect to dashboard if spreadsheet not found
         window.location.href = '/dashboard';
       }
     } else {
-      // No ID provided, redirect to dashboard
       window.location.href = '/dashboard';
     }
   }
@@ -101,31 +108,45 @@ export class Spreadsheet {
     this.attachEventListeners();
   }
 
-  private addSheet(): void {
-    const sheetNumber = this.sheets.length + 1;
-    const newSheet: Sheet = {
-      id: crypto.randomUUID(),
-      name: `Sheet${sheetNumber}`,
-      data: {}
-    };
-    
-    this.sheets.push(newSheet);
-    this.activeSheetId = newSheet.id;
-    this.data = newSheet.data;
-    
-    // Initialize cells for the new sheet
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
-        const cellId = getCellId(row, col);
-        this.data[cellId] = {
-          value: '',
-          formula: '',
-          computed: ''
-        };
+  private async addSheet() {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('No active session');
       }
-    }
 
-    this.updateSheetTabs();
+      const sheetNumber = this.sheets.length + 1;
+      const newSheet: Sheet = {
+        id: crypto.randomUUID(),
+        title: `Sheet${sheetNumber}`,
+        data: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null,
+        user_id: user.id
+      };
+      
+      this.sheets.push(newSheet);
+      this.activeSheetId = newSheet.id;
+      this.data = newSheet.data;
+      
+      // Initialize cells for the new sheet
+      for (let row = 0; row < this.rows; row++) {
+        for (let col = 0; col < this.cols; col++) {
+          const cellId = getCellId(row, col);
+          this.data[cellId] = {
+            value: '',
+            formula: '',
+            computed: ''
+          };
+        }
+      }
+
+      this.updateSheetTabs();
+    } catch (error) {
+      console.error('Error creating new sheet:', error);
+      window.location.href = '/';
+    }
   }
 
   private setupSheetTabs(): void {
@@ -166,7 +187,7 @@ export class Spreadsheet {
     this.sheets.forEach(sheet => {
       const tab = document.createElement('div');
       tab.className = `tab${sheet.id === this.activeSheetId ? ' active' : ''}`;
-      tab.textContent = sheet.name;
+      tab.textContent = sheet.title;
       tab.dataset.sheetId = sheet.id;
       tabsContainer.appendChild(tab);
     });
@@ -472,6 +493,14 @@ export class Spreadsheet {
         this.fillEndCell = null;
       }
     });
+
+    // Add save shortcut
+    document.addEventListener('keydown', async (e) => {
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault(); // Prevent browser save dialog
+        await this.saveSpreadsheet();
+      }
+    });
   }
 
   private finishEditing(cell: HTMLElement): void {
@@ -486,14 +515,24 @@ export class Spreadsheet {
     content.textContent = this.data[cellId].computed;
   }
 
-  private updateCell(cellId: string, value: string): void {
-    this.data[cellId].value = value;
-    if (value.startsWith('=')) {
-      this.data[cellId].formula = value;
-      this.data[cellId].computed = this.evaluateFormula(value, this.data);
+  private updateCell(cellId: string, value: unknown): void {
+    // Ensure value is a string
+    const stringValue = typeof value === 'string' ? value : '';
+    
+    this.data[cellId] = this.data[cellId] || {
+      value: '',
+      formula: '',
+      computed: ''
+    };
+
+    this.data[cellId].value = stringValue;
+    if (stringValue.startsWith('=')) {
+      this.data[cellId].formula = stringValue;
+      const computed = this.evaluateFormula(stringValue, this.data);
+      this.data[cellId].computed = typeof computed === 'string' ? computed : '';
     } else {
       this.data[cellId].formula = '';
-      this.data[cellId].computed = value;
+      this.data[cellId].computed = stringValue;
     }
     
     // Update cell display
@@ -936,6 +975,55 @@ export class Spreadsheet {
 
   private isEditing(): boolean {
     return !!this.container.querySelector('.cell-content[contenteditable="true"]');
+  }
+
+  private async saveSpreadsheet(): Promise<void> {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    
+    if (!id) return;
+
+    try {
+      const { error } = await supabase
+        .from('spreadsheets')
+        .update({
+          title: this.title ?? 'Untitled spreadsheet',
+          data: this.data ?? {},
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Show save indicator
+      const saveIndicator = document.createElement('div');
+      saveIndicator.textContent = 'All changes saved';
+      saveIndicator.style.cssText = `
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        background: #323232;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      `;
+      document.body.appendChild(saveIndicator);
+      
+      // Fade in
+      setTimeout(() => saveIndicator.style.opacity = '1', 0);
+      // Fade out and remove
+      setTimeout(() => {
+        saveIndicator.style.opacity = '0';
+        setTimeout(() => saveIndicator.remove(), 300);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error saving spreadsheet:', error);
+      alert('Failed to save spreadsheet. Please try again.');
+    }
   }
 }
 

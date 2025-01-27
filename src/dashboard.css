@@ -131,17 +131,22 @@ body {
 }
 
 .spreadsheet-card {
-  background: var(--white);
+  position: relative;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: white;
+  transition: background-color 0.2s;
+  overflow: hidden;
 }
 
 .spreadsheet-card:hover {
   border-color: var(--primary-blue);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+  padding: 1rem;
+  cursor: pointer;
 }
 
 .spreadsheet-title {
@@ -153,6 +158,37 @@ body {
 .spreadsheet-date {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.delete-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.spreadsheet-card:hover .delete-btn {
+  opacity: 0.6;
+}
+
+.delete-btn:hover {
+  opacity: 1 !important;
+  background: rgba(217, 48, 37, 0.1);
+}
+
+.delete-btn .material-icons {
+  font-size: 20px;
+  color: #d93025;
 }
 
 /* Profile menu styles */
