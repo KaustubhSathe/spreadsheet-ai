@@ -27,6 +27,93 @@ export class Spreadsheet {
   private fillEndCell: HTMLElement | null = null;
   private title: string = '';
   private hf: HyperFormula;
+  private formulaDropdown: HTMLElement | null = null;
+  private readonly HYPERFORMULA_FUNCTIONS: { name: string; description: string }[] = [
+    // Math Functions
+    { name: 'SUM', description: 'Adds up a series of numbers' },
+    { name: 'AVERAGE', description: 'Calculates the arithmetic mean of numbers' },
+    { name: 'COUNT', description: 'Counts the number of cells that contain numbers' },
+    { name: 'MAX', description: 'Returns the largest value in a set of numbers' },
+    { name: 'MIN', description: 'Returns the smallest value in a set of numbers' },
+    { name: 'ROUND', description: 'Rounds a number to a specified number of digits' },
+    { name: 'ROUNDDOWN', description: 'Rounds a number down toward zero' },
+    { name: 'ROUNDUP', description: 'Rounds a number up away from zero' },
+    { name: 'POWER', description: 'Returns the result of a number raised to a power' },
+    { name: 'SQRT', description: 'Returns the square root of a number' },
+    { name: 'ABS', description: 'Returns the absolute value of a number' },
+    { name: 'MOD', description: 'Returns the remainder after division' },
+    { name: 'PRODUCT', description: 'Multiplies all the numbers given as arguments' },
+    { name: 'SUMIF', description: 'Adds the cells specified by a given criteria' },
+    { name: 'MEDIAN', description: 'Returns the median of the given numbers' },
+
+    // Logical Functions
+    { name: 'IF', description: 'Makes a logical comparison between values' },
+    { name: 'AND', description: 'Returns TRUE if all arguments are TRUE' },
+    { name: 'OR', description: 'Returns TRUE if any argument is TRUE' },
+    { name: 'NOT', description: 'Reverses the logical value of its argument' },
+    { name: 'TRUE', description: 'Returns the logical value TRUE' },
+    { name: 'FALSE', description: 'Returns the logical value FALSE' },
+    { name: 'ISBLANK', description: 'Returns TRUE if the value is blank' },
+    { name: 'ISERROR', description: 'Returns TRUE if the value is an error' },
+
+    // Text Functions
+    { name: 'CONCAT', description: 'Combines text from multiple cells into one text' },
+    { name: 'LEFT', description: 'Returns the leftmost characters from a text value' },
+    { name: 'RIGHT', description: 'Returns the rightmost characters from a text value' },
+    { name: 'MID', description: 'Returns a specific number of characters from a text string' },
+    { name: 'LEN', description: 'Returns the number of characters in a text string' },
+    { name: 'LOWER', description: 'Converts text to lowercase' },
+    { name: 'UPPER', description: 'Converts text to uppercase' },
+    { name: 'TRIM', description: 'Removes spaces from text' },
+    { name: 'REPLACE', description: 'Replaces characters within text' },
+    { name: 'FIND', description: 'Finds one text value within another (case-sensitive)' },
+
+    // Date & Time Functions
+    { name: 'DATE', description: 'Returns the serial number of a particular date' },
+    { name: 'DAY', description: 'Converts a serial number to a day of the month' },
+    { name: 'MONTH', description: 'Converts a serial number to a month' },
+    { name: 'YEAR', description: 'Converts a serial number to a year' },
+    { name: 'NOW', description: 'Returns the current date and time' },
+    { name: 'TODAY', description: 'Returns the current date' },
+    { name: 'TIME', description: 'Returns the serial number of a particular time' },
+    { name: 'HOUR', description: 'Converts a serial number to an hour' },
+    { name: 'MINUTE', description: 'Converts a serial number to a minute' },
+    { name: 'SECOND', description: 'Converts a serial number to a second' },
+
+    // Statistical Functions
+    { name: 'COUNTA', description: 'Counts how many values are in a list of arguments' },
+    { name: 'COUNTBLANK', description: 'Counts empty cells in a specified range' },
+    { name: 'COUNTIF', description: 'Counts cells that meet a criteria' },
+    { name: 'AVERAGEA', description: 'Calculates average including text and logical values' },
+
+    // Trigonometric Functions
+    { name: 'SIN', description: 'Returns the sine of an angle' },
+    { name: 'COS', description: 'Returns the cosine of an angle' },
+    { name: 'TAN', description: 'Returns the tangent of an angle' },
+    { name: 'ASIN', description: 'Returns the arcsine of a number' },
+    { name: 'ACOS', description: 'Returns the arccosine of a number' },
+    { name: 'ATAN', description: 'Returns the arctangent of a number' },
+    { name: 'SINH', description: 'Returns the hyperbolic sine of a number' },
+    { name: 'COSH', description: 'Returns the hyperbolic cosine of a number' },
+    { name: 'TANH', description: 'Returns the hyperbolic tangent of a number' },
+
+    // Information Functions
+    { name: 'ISTEXT', description: 'Returns TRUE if the value is text' },
+    { name: 'ISNUMBER', description: 'Returns TRUE if the value is a number' },
+    { name: 'ISLOGICAL', description: 'Returns TRUE if the value is logical' },
+    { name: 'ISNONTEXT', description: 'Returns TRUE if the value is not text' },
+    { name: 'ISNA', description: 'Returns TRUE if the value is #N/A' },
+
+    // Math & Trig
+    { name: 'PI', description: 'Returns the value of pi' },
+    { name: 'DEGREES', description: 'Converts radians to degrees' },
+    { name: 'RADIANS', description: 'Converts degrees to radians' },
+    { name: 'LN', description: 'Returns the natural logarithm of a number' },
+    { name: 'LOG', description: 'Returns the logarithm of a number to a specified base' },
+    { name: 'LOG10', description: 'Returns the base-10 logarithm of a number' },
+    { name: 'EXP', description: 'Returns e raised to the power of a number' }
+  ];
+  private selectedFormulaIndex: number = -1;
 
   constructor(containerId: string) {
     this.container = document.getElementById('spreadsheet-container')!;
@@ -270,28 +357,42 @@ export class Spreadsheet {
         return;
       }
 
-      if (!this.activeCell || activeContent?.contentEditable === 'true') {
-        if (activeContent?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
+      // Handle cell editing on keydown
+      if (activeContent?.contentEditable === 'true') {
+        // Handle Enter key
+        if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           activeContent.blur();
           
           // Move to the next row after finishing edit
-          const currentCellId = this.activeCell.dataset.cellId!;
+          const currentCellId = this.activeCell!.dataset.cellId!;
           const { row, col } = this.parseCellId(currentCellId);
           const nextRow = Math.min(this.rows - 1, row + 1);
           const nextCellId = getCellId(nextRow, col);
           const nextCell = document.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
           
           if (nextCell) {
-            // Remove selected from current cell
-            this.activeCell.classList.remove('selected', 'active');
-            // Select next cell
+            this.activeCell!.classList.remove('selected', 'active');
             nextCell.classList.add('selected', 'active');
             this.activeCell = nextCell;
             this.updateFormulaBar(nextCellId);
           }
+          return;
         }
-        return;
+
+        // Handle formula dropdown on keydown
+        requestAnimationFrame(() => {
+          const value = activeContent.textContent || '';
+          this.handleCellEdit(activeContent, value);
+        });
+      } else if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+        // Start editing on any printable character
+        if (this.activeCell) {
+          const content = this.activeCell.querySelector('.cell-content') as HTMLElement;
+          content.contentEditable = 'true';
+          content.textContent = '';
+          content.focus();
+        }
       }
       
       this.handleKeyNavigation(e);
@@ -462,6 +563,13 @@ export class Spreadsheet {
     document.addEventListener('click', clickHandler);
     document.addEventListener('dblclick', dblclickHandler);
     document.addEventListener('blur', blurHandler, true);
+
+    // Add to attachEventListeners
+    document.addEventListener('click', (e) => {
+      if (!this.formulaDropdown?.contains(e.target as Node)) {
+        this.hideFormulaDropdown();
+      }
+    });
   }
 
   private startEditing(cell: HTMLElement): void {
@@ -549,67 +657,83 @@ export class Spreadsheet {
     }
   }
 
-  private handleCellEdit(cell: HTMLElement, value: string) {
-    const cellId = cell.parentElement?.dataset.cellId;
+  private handleCellEdit(content: HTMLElement, value: string): void {
+    const cellId = content.parentElement?.dataset.cellId;
     if (!cellId) return;
 
     try {
       const { row, col } = this.parseCellId(cellId);
       
-      if (value.startsWith('=')) {
-        // Set the formula in HyperFormula
-        this.hf.setCellContents({
-          sheet: 0,
-          row,
-          col
-        }, value);
-
-        // Get the computed value
-        const computed = this.hf.getCellValue({ sheet: 0, row, col });
-        const displayValue = computed?.toString() || '#ERROR!';
-
-        // Update our data structure
+      // Handle formula dropdown
+      if (value === '=') {
+        this.showFormulaDropdown(content);
+        // Just store the = without evaluating
         this.data[cellId] = {
           value: value,
           formula: value,
-          computed: displayValue
+          computed: value
         };
-
-        // Update cell display with computed value
-        cell.textContent = displayValue;
-
-        // Update formula bar with formula
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        formulaInput.value = value;
-
-        // Update all cells that might have formulas
-        this.updateDependentCells();
-      } else {
-        // Regular value
-        this.hf.setCellContents({ sheet: 0, row, col }, value);
+        content.textContent = value;
+        return;
+      } else if (value.startsWith('=')) {
+        const searchTerm = value.substring(1);
+        this.showFormulaDropdown(content, searchTerm);
         
-        // Update our data structure
+        // Only evaluate if the formula is complete (has closing parenthesis)
+        const isCompleteFormula = value.includes('(') && value.includes(')');
+        if (isCompleteFormula) {
+          // Set the formula in HyperFormula
+          this.hf.setCellContents({
+            sheet: this.activeSheetId,
+            row,
+            col
+          }, value);
+
+          // Get the computed value
+          const computed = this.hf.getCellValue({ sheet: this.activeSheetId, row, col });
+          const displayValue = computed?.toString() || '';
+
+          // Update our data structure
+          this.data[cellId] = {
+            value: value,
+            formula: value,
+            computed: displayValue
+          };
+        } else {
+          // Store incomplete formula without evaluating
+          this.data[cellId] = {
+            value: value,
+            formula: value,
+            computed: value
+          };
+        }
+        content.textContent = value;
+      } else {
+        this.hideFormulaDropdown();
+        // Regular value handling...
+        this.hf.setCellContents({ sheet: this.activeSheetId, row, col }, value);
+        
         this.data[cellId] = {
           value: value,
           formula: '',
           computed: value
         };
 
-        // Update both cell and formula bar with value
-        cell.textContent = value;
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        formulaInput.value = value;
-
-        // Update any cells that might depend on this one
-        this.updateDependentCells();
+        content.textContent = value;
       }
+
+      // Update formula bar
+      const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+      formulaInput.value = value;
+
     } catch (error) {
       console.error('Cell edit error:', error);
-      cell.classList.add('error');
-      setTimeout(() => cell.classList.remove('error'), 2000);
-      
-      // Show error in cell and formula bar
-      cell.textContent = '#ERROR!';
+      // Don't show error while typing formula
+      if (!content.contentEditable || content.contentEditable === 'false') {
+        content.classList.add('error');
+        setTimeout(() => content.classList.remove('error'), 2000);
+        content.textContent = '#ERROR!';
+      }
       const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
       formulaInput.value = value;
     }
@@ -1090,6 +1214,197 @@ export class Spreadsheet {
         this.switchSheet(sheetId);
       }
     });
+  }
+
+  private showFormulaDropdown(inputElement: HTMLElement, searchTerm: string = ''): void {
+    this.hideFormulaDropdown();
+    this.selectedFormulaIndex = -1;
+
+    const rect = inputElement.getBoundingClientRect();
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'formula-dropdown';
+    
+    // Create scrollable container for items
+    const itemsContainer = document.createElement('div');
+    itemsContainer.className = 'formula-items-container';
+    
+    // Filter functions based on search term
+    const filteredFunctions = this.HYPERFORMULA_FUNCTIONS.filter(fn => 
+      fn.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (filteredFunctions.length === 0) {
+      this.hideFormulaDropdown();
+      return;
+    }
+
+    // Add items to container
+    filteredFunctions.forEach((fn, index) => {
+      const item = document.createElement('div');
+      item.className = 'formula-item';
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'formula-name';
+      nameSpan.textContent = fn.name;
+      
+      const descSpan = document.createElement('span');
+      descSpan.className = 'formula-description';
+      descSpan.textContent = fn.description;
+      
+      item.appendChild(nameSpan);
+      item.appendChild(descSpan);
+      
+      item.addEventListener('click', () => this.selectFormula(inputElement, fn.name));
+      item.addEventListener('mouseover', () => {
+        this.selectedFormulaIndex = index;
+        this.updateSelectedFormula();
+      });
+      
+      itemsContainer.appendChild(item);
+    });
+
+    // Add items container to dropdown
+    dropdown.appendChild(itemsContainer);
+
+    // Add keyboard navigation hint
+    const hint = document.createElement('div');
+    hint.className = 'formula-hint';
+    hint.textContent = '↑↓ to navigate • Tab or Enter to select';
+    dropdown.appendChild(hint);
+
+    // Append to body and get dimensions
+    document.body.appendChild(dropdown);
+    this.formulaDropdown = dropdown;
+    const dropdownRect = dropdown.getBoundingClientRect();
+
+    // Calculate available space and scroll positions
+    const spaceBelow = viewport.height - rect.bottom;
+    const spaceAbove = rect.top;
+    const spaceRight = viewport.width - rect.left;
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+    // Position dropdown
+    dropdown.style.position = 'fixed';
+    dropdown.style.zIndex = '10000';
+
+    // Horizontal positioning
+    if (spaceRight >= dropdownRect.width) {
+      // Align with cell's left edge
+      dropdown.style.left = `${rect.left + scrollX}px`;
+    } else {
+      // Align with cell's right edge
+      dropdown.style.left = `${rect.right - dropdownRect.width + scrollX}px`;
+    }
+
+    // Vertical positioning
+    if (spaceBelow >= dropdownRect.height) {
+      // Show below the cell
+      dropdown.style.top = `${rect.bottom + scrollY}px`;
+    } else if (spaceAbove >= dropdownRect.height) {
+      // Show above the cell
+      dropdown.style.top = `${rect.top - dropdownRect.height + scrollY}px`;
+    } else {
+      // If no space above or below, show below and make it scrollable
+      dropdown.style.top = `${rect.bottom + scrollY}px`;
+      const availableHeight = Math.max(spaceBelow, 100); // Minimum 100px height
+      dropdown.style.maxHeight = `${availableHeight}px`;
+    }
+
+    document.addEventListener('keydown', this.handleFormulaKeydown, true);
+  }
+
+  private handleFormulaKeydown = (e: KeyboardEvent) => {
+    if (!this.formulaDropdown) return;
+    
+    const items = this.formulaDropdown.querySelectorAll('.formula-item');
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = 0;
+        } else {
+          this.selectedFormulaIndex = Math.min(this.selectedFormulaIndex + 1, items.length - 1);
+        }
+        this.updateSelectedFormula();
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = items.length - 1;
+        } else {
+          this.selectedFormulaIndex = Math.max(this.selectedFormulaIndex - 1, 0);
+        }
+        this.updateSelectedFormula();
+        break;
+        
+      case 'Tab':
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = 0;
+        }
+        const selectedItem = items[this.selectedFormulaIndex];
+        const formulaName = selectedItem.querySelector('.formula-name')?.textContent;
+        if (formulaName) {
+          const activeContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
+          if (activeContent) {
+            this.selectFormula(activeContent, formulaName);
+          }
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideFormulaDropdown();
+        break;
+    }
+  };
+
+  private updateSelectedFormula(): void {
+    if (!this.formulaDropdown) return;
+    
+    const items = this.formulaDropdown.querySelectorAll('.formula-item');
+    items.forEach((item, index) => {
+      if (index === this.selectedFormulaIndex) {
+        item.classList.add('selected');
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+  }
+
+  private selectFormula(inputElement: HTMLElement, formulaName: string): void {
+    if (inputElement.contentEditable === 'true') {
+      inputElement.textContent = `=${formulaName}()`;
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.setStart(inputElement.firstChild!, inputElement.textContent!.length - 1);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      this.hideFormulaDropdown();
+    }
+  }
+
+  private hideFormulaDropdown(): void {
+    if (this.formulaDropdown) {
+      document.removeEventListener('keydown', this.handleFormulaKeydown);
+      this.formulaDropdown.remove();
+      this.formulaDropdown = null;
+    }
   }
 }
 

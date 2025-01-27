@@ -81,7 +81,7 @@ body {
 }
 
 .row-numbers {
-  position: sticky;
+  position: sticky; 
   left: 0;
   z-index: 2;
   background: var(--background-light);
@@ -809,4 +809,120 @@ body {
 .cell-content.error {
   background-color: #ffebee;
   border: 1px solid #ef5350;
+}
+
+.formula-dropdown {
+  position: fixed;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  max-height: 250px;
+  z-index: 10000;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  margin: 0; /* Remove margin */
+}
+
+/* Add transition for smooth repositioning */
+.formula-dropdown {
+  transition: top 0.2s, bottom 0.2s, left 0.2s, right 0.2s;
+}
+
+.formula-items-container {
+  overflow-y: auto;
+  max-height: calc(250px - 28px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Webkit scrollbar styling */
+.formula-items-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.formula-items-container::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.formula-items-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 100px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.formula-items-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Remove old scrollbar styles */
+.formula-dropdown::-webkit-scrollbar,
+.formula-dropdown::-webkit-scrollbar-track,
+.formula-dropdown::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+.formula-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.formula-item:last-child {
+  border-bottom: none;
+}
+
+.formula-item.selected {
+  background: var(--primary-blue-transparent);
+}
+
+.formula-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.formula-description {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.formula-hint {
+  padding: 6px;
+  background: var(--background-light);
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  position: sticky;
+  bottom: 0;
+}
+
+/* Add scrollbar styling for the dropdown */
+.formula-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.formula-dropdown::-webkit-scrollbar-track {
+  background: var(--background-light);
+}
+
+.formula-dropdown::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+/* Make sure container has proper positioning */
+#spreadsheet-container {
+  position: relative;
+  /* ... rest of the styles ... */
 } 
