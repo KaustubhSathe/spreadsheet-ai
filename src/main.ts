@@ -1,26 +1,9 @@
 import './app.css';
 import { SpreadsheetData, Sheet, Cell } from './types';
-import { getCellId } from './utils';
+import { getCellId } from './utils/grid';
 import { supabase, supabaseAnonKey } from './supabase';
 import { HyperFormula } from 'hyperformula';
-
-// Add auth check at the start
-async function checkAuth() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    window.location.href = '/';
-    return false;
-  }
-  return true;
-}
-
-// Add this function after checkAuth()
-async function handleLogout() {
-  const { error } = await supabase.auth.signOut();
-  if (!error) {
-    window.location.href = '/';
-  }
-}
+import { checkAuth, handleLogout } from './utils/auth';
 
 export class Spreadsheet {
   private container: HTMLElement;
@@ -29,7 +12,7 @@ export class Spreadsheet {
   private rows: number = 50;
   private cols: number = 26;
   private sheets: Sheet[] = [];
-  private activeSheetId: string = '';
+  private activeSheetId: number = 0;
   private isSelecting: boolean = false;
   private selectionStart: HTMLElement | null = null;
   private selectionEnd: HTMLElement | null = null;
@@ -53,13 +36,18 @@ export class Spreadsheet {
       maxColumns: 26,
       maxRows: 50
     });
-    // Add a sheet and store its ID
-    const sheetId = this.hf.addSheet('Sheet1');
+    // Add a sheet and store its ID as a number
+    this.activeSheetId = parseInt(this.hf.addSheet('Sheet1'));
     this.init();
-    this.loadSpreadsheet();
+  }
+
+  private init(): void {
+    this.createSpreadsheet();
     this.setupFormulaBar();
     this.setupSheetTabs();
     this.setupProfileDropdown();
+    this.attachEventListeners();
+    this.loadSpreadsheet();
   }
 
   async loadSpreadsheet() {
@@ -106,7 +94,7 @@ export class Spreadsheet {
                 const { row, col } = this.parseCellId(cellId);
                 const computed = this.hf.getCellValue({ sheet: 0, row, col });
                 cell.textContent = computed?.toString() || '';
-                this.data[cellId] = {
+        this.data[cellId] = {
                   value: cellData.value,
                   formula: cellData.formula,
                   computed: computed?.toString() || ''
@@ -124,84 +112,20 @@ export class Spreadsheet {
     }
   }
 
-  private init(): void {
-    // Create initial sheet
-    this.addSheet();
-    this.createSpreadsheet();
-    this.attachEventListeners();
-  }
-
-  private async addSheet() {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        throw new Error('No active session');
-      }
-
-    const sheetNumber = this.sheets.length + 1;
-    const newSheet: Sheet = {
-      id: crypto.randomUUID(),
-        title: `Sheet${sheetNumber}`,
-        data: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        user_id: user.id
-    };
-    
-    this.sheets.push(newSheet);
-    this.activeSheetId = newSheet.id;
-    this.data = newSheet.data;
-    
-    // Initialize cells for the new sheet
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
-        const cellId = getCellId(row, col);
-        this.data[cellId] = {
-          value: '',
-          formula: '',
-          computed: ''
-        };
-      }
-    }
-
-    this.updateSheetTabs();
-    } catch (error) {
-      console.error('Error creating new sheet:', error);
-      window.location.href = '/';
-    }
-  }
-
   private setupSheetTabs(): void {
-    const addSheetButton = document.querySelector('.add-sheet') as HTMLElement;
     const sheetTabs = document.querySelector('.sheet-tabs') as HTMLElement;
 
-    addSheetButton.addEventListener('click', () => {
-      this.addSheet();
-    });
+    const renderSheet = () => {
+      // Clear existing cells
+      const cells = this.container.querySelectorAll('td');
+      cells.forEach(cell => {
+        const cellId = cell.dataset.cellId!;
+        cell.textContent = this.data[cellId]?.computed || '';
+      });
+    };
 
-    sheetTabs.addEventListener('click', (e) => {
-      const tab = (e.target as HTMLElement).closest('.tab') as HTMLElement;
-      if (tab && !tab.classList.contains('active')) {
-        const sheetId = tab.dataset.sheetId!;
-        this.switchSheet(sheetId);
-      }
-    });
-  }
-
-  private switchSheet(sheetId: string): void {
-    const sheet = this.sheets.find(s => s.id === sheetId);
-    if (sheet) {
-      this.activeSheetId = sheetId;
-      this.data = sheet.data;
-      this.updateSheetTabs();
-      this.renderSheet();
-    }
-  }
-
-  private updateSheetTabs(): void {
+    const updateSheetTabs = () => {
     const tabsContainer = document.querySelector('.sheet-tabs') as HTMLElement;
-    const addSheetButton = tabsContainer.querySelector('.add-sheet') as HTMLElement;
     
     // Remove all existing tabs
     tabsContainer.querySelectorAll('.tab').forEach(tab => tab.remove());
@@ -209,23 +133,68 @@ export class Spreadsheet {
     // Add tabs for each sheet after the add button
     this.sheets.forEach(sheet => {
       const tab = document.createElement('div');
-      tab.className = `tab${sheet.id === this.activeSheetId ? ' active' : ''}`;
-      tab.textContent = sheet.title;
+        tab.className = `tab${sheet.id === this.sheets[this.activeSheetId].id ? ' active' : ''}`;
+        tab.textContent = sheet.title;
       tab.dataset.sheetId = sheet.id;
       tabsContainer.appendChild(tab);
+      });
+    };
+
+    const switchSheet = (sheetId: string) => {
+      const sheet = this.sheets.find(s => s.id === sheetId);
+      if (sheet) {
+        this.activeSheetId = parseInt(this.hf.addSheet(sheet.title));
+        this.data = sheet.data;
+        updateSheetTabs();
+        renderSheet();
+      }
+    };
+
+    sheetTabs.addEventListener('click', (e) => {
+      const tab = (e.target as HTMLElement).closest('.tab') as HTMLElement;
+      if (tab && !tab.classList.contains('active')) {
+        const sheetId = tab.dataset.sheetId!;
+        switchSheet(sheetId);
+      }
     });
   }
 
-  private renderSheet(): void {
-    // Clear existing cells
-    const cells = this.container.querySelectorAll('td');
-    cells.forEach(cell => {
-      const cellId = cell.dataset.cellId!;
-      cell.textContent = this.data[cellId]?.computed || '';
+  private setupFormulaBar(): void {
+    const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+    const cellName = document.getElementById('cell-name') as HTMLInputElement;
+
+    // Handle cell content changes during editing
+    document.addEventListener('input', (e) => {
+      const content = e.target as HTMLElement;
+      if (content.classList.contains('cell-content') && content.contentEditable === 'true') {
+        // Update formula bar to match cell content
+        formulaInput.value = content.textContent || '';
+      }
     });
   }
 
   private createSpreadsheet(): void {
+    const createCell = (): HTMLElement => {
+      // Create wrapper div
+      const cellWrapper = document.createElement('div');
+      cellWrapper.className = 'cell';
+      
+      // Create content div
+      const content = document.createElement('div');
+      content.className = 'cell-content';
+      content.contentEditable = 'false';
+      
+      // Create fill handle div
+      const fillHandle = document.createElement('div');
+      fillHandle.className = 'fill-handle';
+      
+      // Append both to wrapper
+      cellWrapper.appendChild(content);
+      cellWrapper.appendChild(fillHandle);
+      
+      return cellWrapper;
+    };
+
     const grid = document.createElement('div');
     grid.className = 'spreadsheet';
 
@@ -284,7 +253,7 @@ export class Spreadsheet {
       
       // Create cells for this column
       for (let row = 0; row < this.rows; row++) {
-        const cell = this.createCell();
+        const cell = createCell();
         const cellId = getCellId(row, col);
         cell.dataset.cellId = cellId;
         column.appendChild(cell);
@@ -303,31 +272,68 @@ export class Spreadsheet {
     this.container.appendChild(grid);
   }
 
-  private createCell(): HTMLElement {
-    // Create wrapper div
-    const cellWrapper = document.createElement('div');
-    cellWrapper.className = 'cell';
-    
-    // Create content div
-    const content = document.createElement('div');
-    content.className = 'cell-content';
-    content.contentEditable = 'false';
-    
-    // Create fill handle div
-    const fillHandle = document.createElement('div');
-    fillHandle.className = 'fill-handle';
-    
-    // Append both to wrapper
-    cellWrapper.appendChild(content);
-    cellWrapper.appendChild(fillHandle);
-    
-    return cellWrapper;
-  }
-
   private attachEventListeners(): void {
-    // Handle selection start
-    document.addEventListener('mousedown', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+    const keydownHandler = async (e: KeyboardEvent) => {
+      const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
+      
+      if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        await this.saveSpreadsheet();
+        return;
+      }
+
+      if (e.key === 'Delete' && !this.isEditing()) {
+        this.deleteSelectedCells();
+        return;
+      }
+
+      if (!this.activeCell || activeContent?.contentEditable === 'true') {
+        if (activeContent?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          activeContent.blur();
+          
+          // Move to the next row after finishing edit
+          const currentCellId = this.activeCell.dataset.cellId!;
+          const { row, col } = this.parseCellId(currentCellId);
+          const nextRow = Math.min(this.rows - 1, row + 1);
+          const nextCellId = getCellId(nextRow, col);
+          const nextCell = document.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
+          
+          if (nextCell) {
+            // Remove selected from current cell
+            this.activeCell.classList.remove('selected', 'active');
+            // Select next cell
+            nextCell.classList.add('selected', 'active');
+            this.activeCell = nextCell;
+            this.updateFormulaBar(nextCellId);
+          }
+        }
+        return;
+      }
+      
+      this.handleKeyNavigation(e);
+    };
+
+    const inputHandler = (e: Event) => {
+      const target = e.target as HTMLElement;
+      
+      if (target.classList.contains('cell-content') && target.contentEditable === 'true') {
+        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+        formulaInput.value = target.textContent || '';
+      }
+      
+      if (target.id === 'formula-input' && this.activeCell) {
+        const content = this.activeCell.querySelector('.cell-content');
+        if (content) {
+          this.handleCellEdit(content as HTMLElement, (target as HTMLInputElement).value);
+        }
+      }
+    };
+
+    const mousedownHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      const cell = target.closest('.cell') as HTMLElement;
       if (cell) {
         // First, handle any active editing
         const editingContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
@@ -361,10 +367,22 @@ export class Spreadsheet {
         this.activeCell = cell;
         this.updateFormulaBar();
       }
-    });
+      
+      if (target.classList.contains('col-resize-handle')) {
+        this.startColumnResize(e, target);
+      } else if (target.classList.contains('row-resize-handle')) {
+        this.startRowResize(e, target);
+      }
+      
+      const fillHandle = target.closest('.fill-handle');
+      if (fillHandle) {
+        e.stopPropagation();
+        this.isFilling = true;
+        this.fillStartCell = fillHandle.parentElement as HTMLElement;
+      }
+    };
 
-    // Handle selection drag
-    document.addEventListener('mousemove', (e) => {
+    const mousemoveHandler = (e: MouseEvent) => {
       if (this.isSelecting) {
         const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
         if (cell && cell !== this.selectionEnd) {
@@ -373,16 +391,39 @@ export class Spreadsheet {
           this.updateFormulaBar(); // Update formula bar while dragging
         }
       }
-    });
+      if (this.isResizing) {
+        this.handleResize(e);
+      }
+      if (this.isFilling) {
+        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+        if (cell && cell !== this.fillEndCell) {
+          if (this.fillEndCell) {
+            this.clearFillPreview();
+          }
+          this.fillEndCell = cell;
+          this.showFillPreview();
+        }
+      }
+    };
 
-    // Handle selection end
-    document.addEventListener('mouseup', () => {
+    const mouseupHandler = () => {
       this.isSelecting = false;
-    });
+      this.isResizing = false;
+      if (this.isFilling) {
+        this.completeFill();
+        this.isFilling = false;
+        this.fillStartCell = null;
+        this.fillEndCell = null;
+      }
+    };
 
     // Handle cell selection on click
-    this.container.addEventListener('click', (e) => {
+    const clickHandler = (e: MouseEvent) => {
       const clickedCell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+      
+      // Always update dependent cells first
+      this.updateDependentCells();
+
       if (clickedCell) {
         // Update selection and formula bar
         this.activeCell = clickedCell;
@@ -401,28 +442,18 @@ export class Spreadsheet {
         cellName.value = cellId;
         formulaInput.value = cellData?.formula || cellData?.value || '';
       }
-      this.updateDependentCells();
-    });
+    };
 
     // Make cell editable on double click
-    document.addEventListener('dblclick', (e) => {
+    const dblclickHandler = (e: MouseEvent) => {
       const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
       if (cell) {
         this.startEditing(cell);
       }
-    });
-
-    // Handle cell content changes during editing
-    document.addEventListener('input', (e) => {
-      const content = e.target as HTMLElement;
-      if (content.classList.contains('cell-content') && content.contentEditable === 'true') {
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        formulaInput.value = content.textContent || '';
-      }
-    });
+    };
 
     // Handle cell blur (finish editing)
-    document.addEventListener('blur', (e) => {
+    const blurHandler = (e: FocusEvent) => {
       const content = e.target as HTMLElement;
       if (content.classList.contains('cell-content') && content.contentEditable === 'true') {
         const cell = content.parentElement;
@@ -437,187 +468,17 @@ export class Spreadsheet {
           });
         }
       }
-    }, true);
+    };
 
-    // Move keydown listener to document level
-    document.addEventListener('keydown', (e) => {
-      // If no cell is selected or we're editing, don't handle navigation
-      const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
-      this.updateDependentCells();
-      if (!this.activeCell || activeContent?.contentEditable === 'true') {
-        if (activeContent?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          activeContent.blur();
-          
-          // Move to the next row after finishing edit
-          const currentCellId = this.activeCell.dataset.cellId!;
-          const { row, col } = this.parseCellId(currentCellId);
-          const nextRow = Math.min(this.rows - 1, row + 1);
-          const nextCellId = getCellId(nextRow, col);
-          const nextCell = document.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
-          
-          if (nextCell) {
-            // Remove selected from current cell
-            this.activeCell.classList.remove('selected', 'active');
-            // Select next cell
-            nextCell.classList.add('selected', 'active');
-            this.activeCell = nextCell;
-            this.updateFormulaBar(nextCellId);
-          }
-        }
-        return;
-      }
-      
-      // Handle navigation
-      this.handleKeyNavigation(e);
-
-      // Add keyboard event listener for delete
-      if (e.key === 'Delete' && !this.isEditing()) {
-        this.deleteSelectedCells();
-      }
-    });
-
-    // Add resize event listeners
-    document.addEventListener('mousedown', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('col-resize-handle')) {
-        this.startColumnResize(e, target);
-      } else if (target.classList.contains('row-resize-handle')) {
-        this.startRowResize(e, target);
-      }
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (this.isResizing) {
-        this.handleResize(e);
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      this.isResizing = false;
-      this.resizeElement = null;
-    });
-
-    // Handle fill handle events
-    document.addEventListener('mousedown', (e) => {
-      const fillHandle = (e.target as HTMLElement).closest('.fill-handle');
-      if (fillHandle) {
-        e.stopPropagation();
-        this.isFilling = true;
-        this.fillStartCell = fillHandle.parentElement as HTMLElement;
-      }
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (this.isFilling) {
-        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-        if (cell && cell !== this.fillEndCell) {
-          if (this.fillEndCell) {
-            this.clearFillPreview();
-          }
-          this.fillEndCell = cell;
-          this.showFillPreview();
-        }
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (this.isFilling) {
-        this.completeFill();
-        this.isFilling = false;
-        this.fillStartCell = null;
-        this.fillEndCell = null;
-      }
-    });
-
-    // Add save shortcut
-    document.addEventListener('keydown', async (e) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 's') {  // Check for exact combination
-        console.log(e)
-        e.preventDefault(); // Prevent browser save dialog
-        await this.saveSpreadsheet();
-      }
-    });
-
-    // Update formula bar when cell is selected
-    document.addEventListener('click', (e) => {
-      const cell = (e.target as HTMLElement).closest('td');
-      if (cell) {
-        this.activeCell = cell;
-        const cellId = cell.dataset.cellId!;
-        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-        const cellName = document.getElementById('cell-name') as HTMLInputElement;
-        
-        cellName.value = cellId;
-        formulaInput.value = this.data[cellId]?.formula || this.data[cellId]?.value || '';
-      }
-    });
-
-    // Update cell when formula bar changes
-    const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-    formulaInput.addEventListener('input', (e) => {
-      if (this.activeCell) {
-        const content = this.activeCell.querySelector('.cell-content');
-        if (content) {
-          const value = (e.target as HTMLInputElement).value;
-          this.handleCellEdit(content as HTMLElement, value);
-        }
-      }
-    });
-
-    // Also update the click handler to ensure proper blur handling
-    document.addEventListener('click', (e) => {
-      const clickedCell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-      const editingContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
-      
-      if (editingContent && (!clickedCell || clickedCell !== editingContent.parentElement)) {
-        // Finish editing current cell before handling the click
-        const value = editingContent.textContent || '';
-        this.handleCellEdit(editingContent, value);
-        editingContent.contentEditable = 'false';
-        
-        // Force update of dependent cells
-        requestAnimationFrame(() => {
-          this.updateDependentCells();
-        });
-      }
-      
-      // Rest of click handling...
-    });
-  }
-
-  private setupFormulaBar(): void {
-    const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
-    const cellName = document.getElementById('cell-name') as HTMLInputElement;
-
-    // Update formula bar when cell is clicked
-    document.addEventListener('click', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-      if (cell) {
-        this.activeCell = cell;
-        const cellId = cell.dataset.cellId!;
-        cellName.value = cellId;
-        
-        // Show formula if exists, otherwise show value
-        const cellData = this.data[cellId];
-        formulaInput.value = cellData?.formula || cellData?.value || '';
-        
-        // Don't update cell content - it should keep showing computed value
-        const content = cell.querySelector('.cell-content') as HTMLElement;
-        if (!content.contentEditable || content.contentEditable === 'false') {
-          content.textContent = cellData?.computed || '';
-        }
-      }
-    });
-
-    // Handle cell content changes during editing
-    document.addEventListener('input', (e) => {
-      const content = e.target as HTMLElement;
-      if (content.classList.contains('cell-content') && content.contentEditable === 'true') {
-        // Update formula bar to match cell content
-        formulaInput.value = content.textContent || '';
-      }
-    });
+    // Attach event listeners using consistently named handlers
+    document.addEventListener('keydown', keydownHandler);
+    document.addEventListener('input', inputHandler);
+    document.addEventListener('mousedown', mousedownHandler);
+    document.addEventListener('mousemove', mousemoveHandler);
+    document.addEventListener('mouseup', mouseupHandler);
+    document.addEventListener('click', clickHandler);
+    document.addEventListener('dblclick', dblclickHandler);
+    document.addEventListener('blur', blurHandler, true);
   }
 
   private startEditing(cell: HTMLElement): void {
@@ -646,10 +507,10 @@ export class Spreadsheet {
   private finishEditing(cell: HTMLElement): void {
     const content = cell.querySelector('.cell-content') as HTMLElement;
     content.contentEditable = 'false';
-    const cellId = cell.dataset.cellId!;
+        const cellId = cell.dataset.cellId!;
     const newValue = content.textContent || '';
-    this.updateCell(cellId, newValue);
-    this.recalculateAll();
+        this.updateCell(cellId, newValue);
+        this.recalculateAll();
     
     // Show computed value
     content.textContent = this.data[cellId].computed;
@@ -665,14 +526,26 @@ export class Spreadsheet {
       computed: ''
     };
 
-    this.data[cellId].value = stringValue;
+    const { row, col } = this.parseCellId(cellId);
+
     if (stringValue.startsWith('=')) {
-      this.data[cellId].formula = stringValue;
-      const computed = this.evaluateFormula(stringValue, this.data);
-      this.data[cellId].computed = typeof computed === 'string' ? computed : '';
+      // Use HyperFormula for formula evaluation
+      this.hf.setCellContents({ sheet: 0, row, col }, stringValue);
+      const computed = this.hf.getCellValue({ sheet: 0, row, col });
+      
+      this.data[cellId] = {
+        value: stringValue,
+        formula: stringValue,
+        computed: computed?.toString() || '#ERROR!'
+      };
     } else {
-      this.data[cellId].formula = '';
-      this.data[cellId].computed = stringValue;
+      // Regular value
+      this.hf.setCellContents({ sheet: 0, row, col }, stringValue);
+      this.data[cellId] = {
+        value: stringValue,
+        formula: '',
+        computed: stringValue
+      };
     }
     
     // Update cell display
@@ -767,6 +640,8 @@ export class Spreadsheet {
         const { row, col } = this.parseCellId(cellId);
         return { cellId, row, col };
       });
+
+      console.log("formulaCells", formulaCells)
 
     // Only update cells that contain formulas
     formulaCells.forEach(({ cellId, row, col }) => {
@@ -951,26 +826,6 @@ export class Spreadsheet {
     }
   }
 
-  private evaluateFormula(formula: string, data: SpreadsheetData): string {
-    if (!formula.startsWith('=')) {
-      return formula;
-    }
-
-    try {
-      const expression = formula.slice(1);
-      const evaluatedExpression = expression.replace(/[A-Z]\d+/g, (match) => {
-        return data[match]?.computed || '0';
-      });
-      // Check for division by zero before evaluation
-      if (expression.includes('/0')) {
-        return '#DIV/0!';
-      }
-      return eval(evaluatedExpression).toString();
-    } catch (e) {
-      return '#ERROR!';
-    }
-  }
-
   private updateFormulaBar(cellId?: string): void {
     const cellName = document.getElementById('cell-name') as HTMLInputElement;
     const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
@@ -1114,7 +969,7 @@ export class Spreadsheet {
             value = '';
           }
           
-          this.updateCell(cellId, value);
+        this.updateCell(cellId, value);
         }
       }
     }
@@ -1147,15 +1002,10 @@ export class Spreadsheet {
       }
     });
 
-    // Handle logout
+    // Use handleLogout function for logout
     const logoutButton = dropdown.querySelector('.logout-button');
     if (logoutButton) {
-      logoutButton.addEventListener('click', async () => {
-        const { error } = await supabase.auth.signOut();
-        if (!error) {
-          window.location.href = '/';
-        }
-      });
+      logoutButton.addEventListener('click', handleLogout);
     }
   }
 

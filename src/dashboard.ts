@@ -1,20 +1,12 @@
 import { supabase, supabaseAnonKey } from './supabase';
 import { Sheet } from './types';
+import { checkAuth, handleLogout } from './utils/auth';
 
 interface Spreadsheet {
   id: string;
   title: string;
   created_at: string;
   user_id: string;
-}
-
-async function checkAuth() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    window.location.href = '/';
-    return false;
-  }
-  return true;
 }
 
 async function loadSpreadsheets() {
@@ -143,10 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Add logout handler
     const logoutButton = document.querySelector('.logout-button');
     if (logoutButton) {
-      logoutButton.addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        window.location.href = '/';
-      });
+      logoutButton.addEventListener('click', handleLogout);
     }
   }
 }); 
