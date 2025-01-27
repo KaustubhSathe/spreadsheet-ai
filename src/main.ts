@@ -184,63 +184,38 @@ export class Spreadsheet {
   }
 
   private createSpreadsheet(): void {
-    const createCell = (): HTMLElement => {
-      // Create wrapper div
-      const cellWrapper = document.createElement('div');
-      cellWrapper.className = 'cell';
-      
-      // Create content div
-      const content = document.createElement('div');
-      content.className = 'cell-content';
-      content.contentEditable = 'false';
-      
-      // Create fill handle div
-      const fillHandle = document.createElement('div');
-      fillHandle.className = 'fill-handle';
-      
-      // Append both to wrapper
-      cellWrapper.appendChild(content);
-      cellWrapper.appendChild(fillHandle);
-      
-      return cellWrapper;
-    };
-
-    const grid = document.createElement('div');
-    grid.className = 'spreadsheet';
-
-    // Create main grid container
     const gridContainer = document.createElement('div');
     gridContainer.className = 'grid-container';
 
-    // Row numbers column (including header)
-    const rowNumbersColumn = document.createElement('div');
-    rowNumbersColumn.className = 'row-numbers';
+    // Create row numbers column with corner cell
+    const rowNumbers = document.createElement('div');
+    rowNumbers.className = 'row-numbers';
     
-    // Add corner cell to row numbers
+    // Add corner cell
     const cornerCell = document.createElement('div');
     cornerCell.className = 'corner-cell';
-    rowNumbersColumn.appendChild(cornerCell);
+    rowNumbers.appendChild(cornerCell);
     
-    // Add row numbers with resize handles
-    for (let row = 0; row < this.rows; row++) {
+    // Add row numbers
+    for (let i = 0; i < this.rows; i++) {
       const rowContainer = document.createElement('div');
       rowContainer.className = 'row-container';
-
+      
       const rowNumber = document.createElement('div');
       rowNumber.className = 'row-number';
-      rowNumber.textContent = (row + 1).toString();
+      rowNumber.textContent = (i + 1).toString();
       
       const rowResizeHandle = document.createElement('div');
       rowResizeHandle.className = 'row-resize-handle';
-      rowResizeHandle.dataset.row = row.toString();
+      rowResizeHandle.dataset.row = i.toString();
       
       rowContainer.appendChild(rowNumber);
       rowContainer.appendChild(rowResizeHandle);
-      rowNumbersColumn.appendChild(rowContainer);
+      rowNumbers.appendChild(rowContainer);
     }
-    gridContainer.appendChild(rowNumbersColumn);
+    gridContainer.appendChild(rowNumbers);
 
-    // Create columns with headers and resize handles
+    // Create columns A-Z
     for (let col = 0; col < this.cols; col++) {
       const column = document.createElement('div');
       column.className = 'column';
@@ -263,23 +238,21 @@ export class Spreadsheet {
       
       // Create cells for this column
       for (let row = 0; row < this.rows; row++) {
-        const cell = createCell();
+        const cell = document.createElement('div');
+        cell.className = 'cell';
         const cellId = getCellId(row, col);
         cell.dataset.cellId = cellId;
-        column.appendChild(cell);
+        
+        const content = document.createElement('div');
+        content.className = 'cell-content';
+        cell.appendChild(content);
 
-        // Initialize cell data
-        this.data[cellId] = {
-          value: '',
-          formula: '',
-          computed: ''
-        };
+        column.appendChild(cell);
       }
       gridContainer.appendChild(column);
     }
 
-    grid.appendChild(gridContainer);
-    this.container.appendChild(grid);
+    this.container.appendChild(gridContainer);
   }
 
   private attachEventListeners(): void {

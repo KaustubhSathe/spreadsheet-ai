@@ -10,6 +10,7 @@
   --border-dark: #e0e0e0;
   --background-hover: #f1f3f4;
   --background-light: #f8f9fa;
+  --background-dark: #e0e0e0;
   
   /* Text colors */
   --text-primary: #202124;
@@ -51,122 +52,146 @@ body {
   left: 0;
   z-index: 3;
   width: 40px;
-  min-width: 40px;
   height: 25px;
-  border-bottom: 2px solid var(--border-color);
-  border-right: 2px solid var(--border-color);
-  background: var(--background-light);
-  box-sizing: border-box;
+  background: var(--background-dark);
 }
 
 .column-header {
   position: sticky;
   top: 0;
+  height: 25px;
   z-index: 2;
-  width: 100%;
-  height: 100%;
+  background: var(--background-light);
   border-bottom: 2px solid var(--border-color);
-  font-size: 11px;
-  color: var(--text-tertiary);
+  border-right: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
   box-sizing: border-box;
-  background: var(--background-light);
 }
 
 .grid-container {
   display: flex;
-  width: fit-content;
-  box-sizing: border-box;
+  width: max-content;
   background: white;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--background-light);
+  border-top: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
 }
 
 .row-numbers {
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 2;
   background: var(--background-light);
   border-right: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  width: 40px;
+}
+
+.row-container {
+  position: relative;
+  width: 100%;
+  height: 25px;
+  display: flex;
+  align-items: center;
 }
 
 .row-number {
-  width: 40px;
-  min-width: 40px;
+  width: 100%;
   height: 100%;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 11px;
-  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
-  flex: 1;
+}
+
+.row-resize-handle {
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 3;
+}
+
+/* Add hover effect for resize handles */
+.row-resize-handle:hover {
+  background-color: var(--primary-blue);
+}
+
+.row-resize-handle:hover::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  top: 2px;
+  left: 0;
+  background: var(--primary-blue);
 }
 
 .column {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border-color);
   width: 100px;
-  min-width: 100px;
-  transition: width 0.1s ease;
-}
-
-.column:last-child {
-  border-right: none;
+  flex: 0 0 100px;
+  position: relative;
 }
 
 .cell {
   position: relative;
-  width: 100%;
-  min-width: 100%;
-  height: 21px;
-  border-bottom: 1px solid var(--border-color);
+  height: 25px;
+  min-height: 25px;
   border-right: 1px solid var(--border-color);
-  background: var(--white);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
-  cursor: default;
-  user-select: none;
-  transition: height 0.1s ease;
+  background: var(--white);
 }
 
 .cell-content {
-  width: calc(100% - 2px);
-  height: calc(100% - 2px);
+  width: 100%;
+  height: 100%;
   padding: 0 6px;
-  font-size: 13px;
-  color: var(--text-primary);
-  white-space: nowrap;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  box-sizing: border-box;
-  background: inherit;
+  line-height: 25px;
+  font-size: 13px;
 }
 
-/* Style for selected cells */
+/* Selection styles */
 .cell.selected {
-  border: 2px solid var(--primary-blue);
-  margin: -1px;
-  z-index: 2;
   background-color: var(--primary-blue-transparent);
+  border: 2px solid var(--primary-blue);
+  z-index: 1;
 }
 
-.cell.selected .cell-content {
-  padding: 0 5px;
-  width: calc(100% - 2px);
-  height: calc(100% - 2px);
-  top: 1px;
-  left: 1px;
+/* Active cell should be on top of other selected cells */
+.cell.selected.active {
+  z-index: 2;
+  border: 2px solid var(--primary-blue);
+}
+
+/* Remove double borders in selection */
+.cell.selected:not(.active) {
+  border-left-width: 0;
+  border-top-width: 0;
+}
+
+.cell.selected:not(.active):first-child {
+  border-left-width: 2px;
+}
+
+.cell.selected:not(.active):first-of-type {
+  border-top-width: 2px;
 }
 
 /* Style for cells being edited */
@@ -385,28 +410,28 @@ body {
 .header-container {
   position: relative;
   width: 100%;
-  height: 25px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 25px;  /* Match column header height */
 }
 
 .col-resize-handle {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 6px;
+  right: -4px;
+  width: 8px;
   height: 100%;
   cursor: col-resize;
-  z-index: 4;
+  z-index: 3;
 }
 
-.row-container {
-  position: relative;
-  width: 100%;
-  height: 21px;
-  display: flex;
-  align-items: center;
+/* Update hover effect for column resize */
+.col-resize-handle:hover::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 100%;
+  top: 0;
+  left: 2px;
+  background: var(--primary-blue);
 }
 
 .row-resize-handle {
@@ -416,33 +441,22 @@ body {
   width: 100%;
   height: 6px;
   cursor: row-resize;
-  z-index: 4;
+  z-index: 3;
 }
 
-.col-resize-handle:hover,
+/* Add hover effect for resize handles */
 .row-resize-handle:hover {
   background-color: var(--primary-blue);
 }
 
-.col-resize-handle:hover::after,
 .row-resize-handle:hover::after {
   content: '';
   position: absolute;
-  background: var(--primary-blue);
-}
-
-.col-resize-handle:hover::after {
-  width: 2px;
-  height: 100%;
-  left: 2px;
-  top: 0;
-}
-
-.row-resize-handle:hover::after {
   width: 100%;
   height: 2px;
   top: 2px;
   left: 0;
+  background: var(--primary-blue);
 }
 
 /* Add to existing styles */
