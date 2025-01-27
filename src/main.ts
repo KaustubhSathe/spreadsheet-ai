@@ -381,27 +381,27 @@ export class Spreadsheet {
     });
 
     // Handle cell selection on click
-    document.addEventListener('click', (e) => {
-      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-      if (cell) {
-        const content = cell.querySelector('.cell-content') as HTMLElement;
-        // Don't handle click if we're already editing
-        if (content.contentEditable === 'true') {
-          return;
+    this.container.addEventListener('click', (e) => {
+      const clickedCell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+      if (clickedCell) {
+        // Update selection and formula bar
+        this.activeCell = clickedCell;
+        const cellId = clickedCell.dataset.cellId!;
+        const content = clickedCell.querySelector('.cell-content') as HTMLElement;
+        const cellData = this.data[cellId];
+
+        // Show computed value in cell
+        if (!content.contentEditable || content.contentEditable === 'false') {
+          content.textContent = cellData?.computed || '';
         }
 
-        // Remove selected and active classes from previously selected cells
-        const prevSelected = document.querySelectorAll('.cell.selected');
-        prevSelected.forEach(cell => {
-          cell.classList.remove('selected', 'active');
-        });
-        
-        this.activeCell = cell;
-        cell.classList.add('selected', 'active');
-        
-        const cellId = cell.dataset.cellId!;
-        this.updateFormulaBar(cellId);
+        // Update formula bar
+        const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+        const cellName = document.getElementById('cell-name') as HTMLInputElement;
+        cellName.value = cellId;
+        formulaInput.value = cellData?.formula || cellData?.value || '';
       }
+      this.updateDependentCells();
     });
 
     // Make cell editable on double click
@@ -430,6 +430,11 @@ export class Spreadsheet {
           const value = content.textContent || '';
           this.handleCellEdit(content as HTMLElement, value);
           content.contentEditable = 'false';
+          
+          // Force update of dependent cells
+          requestAnimationFrame(() => {
+            this.updateDependentCells();
+          });
         }
       }
     }, true);
@@ -438,6 +443,7 @@ export class Spreadsheet {
     document.addEventListener('keydown', (e) => {
       // If no cell is selected or we're editing, don't handle navigation
       const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
+      this.updateDependentCells();
       if (!this.activeCell || activeContent?.contentEditable === 'true') {
         if (activeContent?.contentEditable === 'true' && e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -558,23 +564,31 @@ export class Spreadsheet {
         }
       }
     });
+
+    // Also update the click handler to ensure proper blur handling
+    document.addEventListener('click', (e) => {
+      const clickedCell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+      const editingContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
+      
+      if (editingContent && (!clickedCell || clickedCell !== editingContent.parentElement)) {
+        // Finish editing current cell before handling the click
+        const value = editingContent.textContent || '';
+        this.handleCellEdit(editingContent, value);
+        editingContent.contentEditable = 'false';
+        
+        // Force update of dependent cells
+        requestAnimationFrame(() => {
+          this.updateDependentCells();
+        });
+      }
+      
+      // Rest of click handling...
+    });
   }
 
   private setupFormulaBar(): void {
     const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
     const cellName = document.getElementById('cell-name') as HTMLInputElement;
-
-    // Update cell when formula bar changes
-    formulaInput.addEventListener('input', (e) => {
-      if (this.activeCell) {
-        const content = this.activeCell.querySelector('.cell-content') as HTMLElement;
-        const value = (e.target as HTMLInputElement).value;
-        
-        // Update both cell content and formula bar
-        content.textContent = value;
-        this.handleCellEdit(content, value);
-      }
-    });
 
     // Update formula bar when cell is clicked
     document.addEventListener('click', (e) => {
@@ -584,13 +598,15 @@ export class Spreadsheet {
         const cellId = cell.dataset.cellId!;
         cellName.value = cellId;
         
-        // Show formula if exists, otherwise show computed value
+        // Show formula if exists, otherwise show value
         const cellData = this.data[cellId];
         formulaInput.value = cellData?.formula || cellData?.value || '';
         
-        // Update cell content to show computed value
+        // Don't update cell content - it should keep showing computed value
         const content = cell.querySelector('.cell-content') as HTMLElement;
-        content.textContent = cellData?.computed || '';
+        if (!content.contentEditable || content.contentEditable === 'false') {
+          content.textContent = cellData?.computed || '';
+        }
       }
     });
 
@@ -752,8 +768,6 @@ export class Spreadsheet {
         return { cellId, row, col };
       });
 
-    console.log(formulaCells)
-
     // Only update cells that contain formulas
     formulaCells.forEach(({ cellId, row, col }) => {
       const computed = this.hf.getCellValue({ sheet: 0, row, col });
@@ -790,72 +804,50 @@ export class Spreadsheet {
   private handleKeyNavigation(e: KeyboardEvent): void {
     const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
     // Skip navigation if we're editing a cell
-    if (!this.activeCell || activeContent?.contentEditable === 'true') return;
-    
-    const currentCellId = this.activeCell.dataset.cellId!;
-    const { row, col } = this.parseCellId(currentCellId);
-    
-    let nextRow = row;
-    let nextCol = col;
-    
-    switch (e.key) {
-      case 'ArrowUp':
-        nextRow = Math.max(0, row - 1);
+    if (!this.activeCell || activeContent?.contentEditable === 'true') {
+      // Handle Enter and Tab while editing
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
         e.preventDefault();
-        break;
-      case 'ArrowDown':
-        nextRow = Math.min(this.rows - 1, row + 1);
-        e.preventDefault();
-        break;
-      case 'ArrowLeft':
-        nextCol = Math.max(0, col - 1);
-        e.preventDefault();
-        break;
-      case 'ArrowRight':
-        nextCol = Math.min(this.cols - 1, col + 1);
-        e.preventDefault();
-        break;
-      case 'Tab':
-        nextCol = e.shiftKey ? Math.max(0, col - 1) : Math.min(this.cols - 1, col + 1);
-        if (nextCol === col) {
-          nextRow = e.shiftKey ? Math.max(0, row - 1) : Math.min(this.rows - 1, row + 1);
-          nextCol = e.shiftKey ? this.cols - 1 : 0;
-        }
-        e.preventDefault();
-        break;
-      case 'Enter':
-        nextRow = e.shiftKey ? Math.max(0, row - 1) : Math.min(this.rows - 1, row + 1);
-        e.preventDefault();
-        break;
-      default:
-        return;
-    }
+        // Finish editing current cell
+        const value = activeContent?.textContent || '';
+        this.handleCellEdit(activeContent, value);
+        activeContent.contentEditable = 'false';
+        
+        // Force update of dependent cells
+        requestAnimationFrame(() => {
+          this.updateDependentCells();
+        });
 
-    const nextCellId = getCellId(nextRow, nextCol);
-    const nextCell = this.container.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
-    
-    if (nextCell) {
-      if (e.shiftKey) {
-        // For shift + arrow keys, extend selection from anchor point
-        if (!this.selectionAnchor) {
-          this.selectionAnchor = this.activeCell;
+        // Continue with navigation
+        const currentCellId = this.activeCell.dataset.cellId!;
+        const { row, col } = this.parseCellId(currentCellId);
+        
+        let nextRow = row;
+        let nextCol = col;
+        
+        if (e.key === 'Enter') {
+          nextRow = Math.min(this.rows - 1, row + 1);
+        } else if (e.key === 'Tab') {
+          nextCol = e.shiftKey ? Math.max(0, col - 1) : Math.min(this.cols - 1, col + 1);
+          if (nextCol === col) {
+            nextRow = e.shiftKey ? Math.max(0, row - 1) : Math.min(this.rows - 1, row + 1);
+            nextCol = e.shiftKey ? this.cols - 1 : 0;
+          }
         }
-        this.selectionStart = this.selectionAnchor;
-        this.selectionEnd = nextCell;
-        this.updateSelection();
-        this.updateFormulaBar(); // Update formula bar for shift selection
-      } else {
-        // For normal navigation, clear selection and select single cell
-        this.clearSelection();
-        this.selectionStart = nextCell;
-        this.selectionEnd = nextCell;
-        this.selectionAnchor = nextCell;
-        nextCell.classList.add('selected');
-        this.updateFormulaBar(nextCellId); // Update formula bar for single cell
+
+        const nextCellId = getCellId(nextRow, nextCol);
+        const nextCell = document.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
+        if (nextCell) {
+          this.activeCell.classList.remove('selected', 'active');
+          nextCell.classList.add('selected', 'active');
+          this.activeCell = nextCell;
+          this.updateFormulaBar(nextCellId);
+        }
       }
-      
-      this.activeCell = nextCell;
+      return;
     }
+    
+    // Rest of navigation code...
   }
 
   private clearSelection(): void {
@@ -1122,12 +1114,17 @@ export class Spreadsheet {
             value = '';
           }
           
-        this.updateCell(cellId, value);
+          this.updateCell(cellId, value);
         }
       }
     }
 
     this.clearFillPreview();
+    
+    // Update dependent cells after fill
+    requestAnimationFrame(() => {
+      this.updateDependentCells();
+    });
   }
 
   // Add this new method
