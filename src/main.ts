@@ -16,7 +16,7 @@ export class Spreadsheet {
   private isSelecting: boolean = false;
   private selectionStart: HTMLElement | null = null;
   private selectionEnd: HTMLElement | null = null;
-  private selectionAnchor: HTMLElement | null = null;
+  private selectionAnchor: { row: number; col: number } | null = null;
   private isResizing: boolean = false;
   private resizeStartX: number = 0;
   private resizeStartY: number = 0;
@@ -172,9 +172,9 @@ export class Spreadsheet {
           if (firstSheet) {
             this.activeSheetId = 0; // HyperFormula index for first sheet
             this.data = firstSheet.data || {};
-          }
+    }
 
-          this.updateSheetTabs();
+    this.updateSheetTabs();
           this.renderSheet();
         }
       } catch (error) {
@@ -415,90 +415,49 @@ export class Spreadsheet {
     };
 
     const mousedownHandler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      
-      const cell = target.closest('.cell') as HTMLElement;
-      if (cell) {
-        // First, handle any active editing
-        const editingContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
-        if (editingContent) {
-          const editingCell = editingContent.closest('.cell') as HTMLElement;
-          if (editingCell !== cell) {
-            this.finishEditing(editingCell);
-          }
-        }
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+      if (!cell) return;
 
-        this.isSelecting = true;
-        
-        if (e.shiftKey && this.activeCell) {
-          // For shift + click, extend selection from active cell
-          this.selectionAnchor = this.activeCell;
-          this.selectionStart = this.selectionAnchor;
-          this.selectionEnd = cell;
-          this.updateSelection(); // Update selection immediately
-        } else {
-          const content = cell.querySelector('.cell-content') as HTMLElement;
-          if (content.contentEditable !== 'true') {
-            // Only start new selection if cell isn't being edited
-            this.clearSelection();
-            this.selectionStart = cell;
-            this.selectionEnd = cell;
-            this.selectionAnchor = cell;
-            cell.classList.add('selected', 'active');
-          }
+      // Start selection
+      this.isSelecting = true;
+      
+      if (e.shiftKey && this.activeCell) {
+        // For shift+click, set anchor if not already set
+        if (!this.selectionAnchor) {
+          const { row, col } = this.parseCellId(this.activeCell.dataset.cellId!);
+          this.selectionAnchor = { row, col };
         }
-        
-        this.activeCell = cell;
-        this.updateFormulaBar();
+        // Handle shift selection
+        const { row, col } = this.parseCellId(cell.dataset.cellId!);
+        this.handleShiftSelection(row, col);
+      } else {
+        // Regular selection
+        this.clearSelection();
+        this.selectionAnchor = null;
+        this.selectCell(cell);
+        const { row, col } = this.parseCellId(cell.dataset.cellId!);
+        this.selectionAnchor = { row, col };
       }
-      
-      if (target.classList.contains('col-resize-handle')) {
-        this.startColumnResize(e, target);
-      } else if (target.classList.contains('row-resize-handle')) {
-        this.startRowResize(e, target);
-      }
-      
-      const fillHandle = target.closest('.fill-handle');
-      if (fillHandle) {
-        e.stopPropagation();
-        this.isFilling = true;
-        this.fillStartCell = fillHandle.parentElement as HTMLElement;
-      }
+
+      this.selectionStart = cell;
+      this.selectionEnd = cell;
     };
 
     const mousemoveHandler = (e: MouseEvent) => {
-      if (this.isSelecting) {
-        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-        if (cell && cell !== this.selectionEnd) {
-          this.selectionEnd = cell;
-          this.updateSelection();
-          this.updateFormulaBar(); // Update formula bar while dragging
-        }
-      }
-      if (this.isResizing) {
-        this.handleResize(e);
-      }
-      if (this.isFilling) {
-        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
-        if (cell && cell !== this.fillEndCell) {
-          if (this.fillEndCell) {
-            this.clearFillPreview();
-          }
-          this.fillEndCell = cell;
-          this.showFillPreview();
-        }
-      }
+      if (!this.isSelecting || !this.selectionStart) return;
+
+      const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+      if (!cell || cell === this.selectionEnd) return;
+
+      this.selectionEnd = cell;
+      
+      // Get range and select cells
+      const { row: endRow, col: endCol } = this.parseCellId(cell.dataset.cellId!);
+      this.handleShiftSelection(endRow, endCol);
     };
 
     const mouseupHandler = () => {
       this.isSelecting = false;
-      this.isResizing = false;
-      if (this.isFilling) {
-        this.completeFill();
-        this.isFilling = false;
-        this.fillStartCell = null;
-        this.fillEndCell = null;
-      }
     };
 
     // Handle cell selection on click
@@ -541,7 +500,7 @@ export class Spreadsheet {
       const content = e.target as HTMLElement;
       if (content.classList.contains('cell-content') && content.contentEditable === 'true') {
         const cell = content.parentElement;
-        if (cell) {
+      if (cell) {
           const value = content.textContent || '';
           this.handleCellEdit(content as HTMLElement, value);
           content.contentEditable = 'false';
@@ -784,52 +743,180 @@ export class Spreadsheet {
   }
 
   private handleKeyNavigation(e: KeyboardEvent): void {
-    const activeContent = this.activeCell?.querySelector('.cell-content') as HTMLElement;
-    // Skip navigation if we're editing a cell
-    if (!this.activeCell || activeContent?.contentEditable === 'true') {
-      // Handle Enter and Tab while editing
-      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
-        e.preventDefault();
-        // Finish editing current cell
-        const value = activeContent?.textContent || '';
-        this.handleCellEdit(activeContent, value);
-        activeContent.contentEditable = 'false';
-        
-        // Force update of dependent cells
-        requestAnimationFrame(() => {
-          this.updateDependentCells();
-        });
+    // Skip if formula dropdown is visible
+    if (this.formulaDropdown) return;
 
-        // Continue with navigation
-        const currentCellId = this.activeCell.dataset.cellId!;
-        const { row, col } = this.parseCellId(currentCellId);
-        
-        let nextRow = row;
-        let nextCol = col;
-        
-        if (e.key === 'Enter') {
-          nextRow = Math.min(this.rows - 1, row + 1);
-        } else if (e.key === 'Tab') {
-          nextCol = e.shiftKey ? Math.max(0, col - 1) : Math.min(this.cols - 1, col + 1);
-          if (nextCol === col) {
-            nextRow = e.shiftKey ? Math.max(0, row - 1) : Math.min(this.rows - 1, row + 1);
-            nextCol = e.shiftKey ? this.cols - 1 : 0;
-          }
+    if (e.key.startsWith('Arrow')) {
+      e.preventDefault();
+      
+      // Get current active cell position
+      const activeCell = this.activeCell;
+      if (!activeCell) return;
+      
+      const { row, col } = this.parseCellId(activeCell.dataset.cellId!);
+      let newRow = row;
+      let newCol = col;
+
+      // Calculate new position
+      switch (e.key) {
+        case 'ArrowUp': newRow = Math.max(0, row - 1); break;
+        case 'ArrowDown': newRow = Math.min(this.rows - 1, row + 1); break;
+        case 'ArrowLeft': newCol = Math.max(0, col - 1); break;
+        case 'ArrowRight': newCol = Math.min(this.cols - 1, col + 1); break;
+      }
+
+      // Handle shift key for multi-select
+      if (e.shiftKey) {
+        if (!this.selectionAnchor) {
+          this.selectionAnchor = { row, col };
         }
-
-        const nextCellId = getCellId(nextRow, nextCol);
-        const nextCell = document.querySelector(`[data-cell-id="${nextCellId}"]`) as HTMLElement;
-        if (nextCell) {
-          this.activeCell.classList.remove('selected', 'active');
-          nextCell.classList.add('selected', 'active');
-          this.activeCell = nextCell;
-          this.updateFormulaBar(nextCellId);
+        this.handleShiftSelection(newRow, newCol);
+      } else {
+        // Clear all selections when shift is released
+        this.clearSelection();
+        this.selectionAnchor = null;
+        const newCellId = getCellId(newRow, newCol);
+        const newCell = document.querySelector(`[data-cell-id="${newCellId}"]`) as HTMLElement;
+        if (newCell) {
+          this.selectCell(newCell);
         }
       }
-      return;
     }
+  }
+
+  private handleShiftSelection(newRow: number, newCol: number): void {
+    if (!this.activeCell || !this.selectionAnchor) return;
     
-    // Rest of navigation code...
+    // Clear previous selection except active cell
+    const selectedCells = document.querySelectorAll('.cell.selected:not(.active)');
+    selectedCells.forEach(cell => cell.classList.remove('selected'));
+
+    // Get the range to select using the anchor point
+    const minRow = Math.min(this.selectionAnchor.row, newRow);
+    const maxRow = Math.max(this.selectionAnchor.row, newRow);
+    const minCol = Math.min(this.selectionAnchor.col, newCol);
+    const maxCol = Math.max(this.selectionAnchor.col, newCol);
+
+    // Select cells in range
+    for (let row = minRow; row <= maxRow; row++) {
+      for (let col = minCol; col <= maxCol; col++) {
+        const cellId = getCellId(row, col);
+        const cell = document.querySelector(`[data-cell-id="${cellId}"]`);
+        if (cell) {
+          cell.classList.add('selected');
+        }
+      }
+    }
+
+    // Update active cell
+    const newCellId = getCellId(newRow, newCol);
+    const newCell = document.querySelector(`[data-cell-id="${newCellId}"]`) as HTMLElement;
+    if (newCell) {
+      if (this.activeCell) {
+        this.activeCell.classList.remove('active');
+      }
+      this.activeCell = newCell;
+      this.activeCell.classList.add('active');
+    }
+
+    // Update formula bar with range
+    const startCellId = getCellId(this.selectionAnchor.row, this.selectionAnchor.col);
+    const endCellId = getCellId(newRow, newCol);
+    this.updateFormulaBar(`${startCellId}:${endCellId}`);
+  }
+
+  private handleFormulaKeydown = (e: KeyboardEvent) => {
+    if (!this.formulaDropdown) return;
+    
+    // Prevent cell navigation when formula dropdown is visible
+    if (e.key.startsWith('Arrow')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const items = this.formulaDropdown.querySelectorAll('.formula-item');
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = 0;
+        } else {
+          this.selectedFormulaIndex = Math.min(this.selectedFormulaIndex + 1, items.length - 1);
+        }
+        this.updateSelectedFormula();
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = items.length - 1;
+        } else {
+          this.selectedFormulaIndex = Math.max(this.selectedFormulaIndex - 1, 0);
+        }
+        this.updateSelectedFormula();
+        break;
+        
+      case 'Tab':
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.selectedFormulaIndex === -1) {
+          this.selectedFormulaIndex = 0;
+        }
+        const selectedItem = items[this.selectedFormulaIndex];
+        const formulaName = selectedItem.querySelector('.formula-name')?.textContent;
+        if (formulaName) {
+          const activeContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
+          if (activeContent) {
+            this.selectFormula(activeContent, formulaName);
+          }
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideFormulaDropdown();
+        break;
+    }
+  };
+
+  private updateSelectedFormula(): void {
+    if (!this.formulaDropdown) return;
+    
+    const items = this.formulaDropdown.querySelectorAll('.formula-item');
+    items.forEach((item, index) => {
+      if (index === this.selectedFormulaIndex) {
+        item.classList.add('selected');
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+  }
+
+  private selectFormula(inputElement: HTMLElement, formulaName: string): void {
+    if (inputElement.contentEditable === 'true') {
+      inputElement.textContent = `=${formulaName}()`;
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.setStart(inputElement.firstChild!, inputElement.textContent!.length - 1);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      this.hideFormulaDropdown();
+    }
+  }
+
+  private hideFormulaDropdown(): void {
+    if (this.formulaDropdown) {
+      document.removeEventListener('keydown', this.handleFormulaKeydown);
+      this.formulaDropdown.remove();
+      this.formulaDropdown = null;
+    }
   }
 
   private clearSelection(): void {
@@ -1319,92 +1406,13 @@ export class Spreadsheet {
     document.addEventListener('keydown', this.handleFormulaKeydown, true);
   }
 
-  private handleFormulaKeydown = (e: KeyboardEvent) => {
-    if (!this.formulaDropdown) return;
-    
-    const items = this.formulaDropdown.querySelectorAll('.formula-item');
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.selectedFormulaIndex === -1) {
-          this.selectedFormulaIndex = 0;
-        } else {
-          this.selectedFormulaIndex = Math.min(this.selectedFormulaIndex + 1, items.length - 1);
-        }
-        this.updateSelectedFormula();
-        break;
-        
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.selectedFormulaIndex === -1) {
-          this.selectedFormulaIndex = items.length - 1;
-        } else {
-          this.selectedFormulaIndex = Math.max(this.selectedFormulaIndex - 1, 0);
-        }
-        this.updateSelectedFormula();
-        break;
-        
-      case 'Tab':
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.selectedFormulaIndex === -1) {
-          this.selectedFormulaIndex = 0;
-        }
-        const selectedItem = items[this.selectedFormulaIndex];
-        const formulaName = selectedItem.querySelector('.formula-name')?.textContent;
-        if (formulaName) {
-          const activeContent = document.querySelector('.cell-content[contenteditable="true"]') as HTMLElement;
-          if (activeContent) {
-            this.selectFormula(activeContent, formulaName);
-          }
-        }
-        break;
-        
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideFormulaDropdown();
-        break;
+  private selectCell(cell: HTMLElement): void {
+    if (this.activeCell) {
+      this.activeCell.classList.remove('selected', 'active');
     }
-  };
-
-  private updateSelectedFormula(): void {
-    if (!this.formulaDropdown) return;
-    
-    const items = this.formulaDropdown.querySelectorAll('.formula-item');
-    items.forEach((item, index) => {
-      if (index === this.selectedFormulaIndex) {
-        item.classList.add('selected');
-        item.scrollIntoView({ block: 'nearest' });
-      } else {
-        item.classList.remove('selected');
-      }
-    });
-  }
-
-  private selectFormula(inputElement: HTMLElement, formulaName: string): void {
-    if (inputElement.contentEditable === 'true') {
-      inputElement.textContent = `=${formulaName}()`;
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.setStart(inputElement.firstChild!, inputElement.textContent!.length - 1);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      this.hideFormulaDropdown();
-    }
-  }
-
-  private hideFormulaDropdown(): void {
-    if (this.formulaDropdown) {
-      document.removeEventListener('keydown', this.handleFormulaKeydown);
-      this.formulaDropdown.remove();
-      this.formulaDropdown = null;
-    }
+    this.activeCell = cell;
+    this.activeCell.classList.add('selected', 'active');
+    this.updateFormulaBar(cell.dataset.cellId);
   }
 }
 

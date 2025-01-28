@@ -170,28 +170,41 @@ body {
 /* Selection styles */
 .cell.selected {
   background-color: var(--primary-blue-transparent);
-  border: 2px solid var(--primary-blue);
+  position: relative;
   z-index: 1;
 }
 
-/* Active cell should be on top of other selected cells */
+/* Active cell should be on top and have full border */
 .cell.selected.active {
   z-index: 2;
   border: 2px solid var(--primary-blue);
 }
 
-/* Remove double borders in selection */
+/* Border styles for selection rectangle */
 .cell.selected:not(.active) {
-  border-left-width: 0;
-  border-top-width: 0;
+  border: 1px solid var(--border-color);
 }
 
+/* Top border for first row in selection */
+.cell.selected:not(.active)[data-cell-id^="A"]:first-child,
+.cell.selected:not(.active)[data-cell-id^="B"]:first-child,
+.cell.selected:not(.active)[data-cell-id^="C"]:first-child {
+  border-top: 2px solid var(--primary-blue);
+}
+
+/* Bottom border for last row in selection */
+.cell.selected:not(.active):last-child {
+  border-bottom: 2px solid var(--primary-blue);
+}
+
+/* Left border for first column in selection */
 .cell.selected:not(.active):first-child {
-  border-left-width: 2px;
+  border-left: 2px solid var(--primary-blue);
 }
 
-.cell.selected:not(.active):first-of-type {
-  border-top-width: 2px;
+/* Right border for last column in selection */
+.cell.selected:not(.active):last-child {
+  border-right: 2px solid var(--primary-blue);
 }
 
 /* Style for cells being edited */
