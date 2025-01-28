@@ -283,13 +283,15 @@ export class Spreadsheet {
     cornerCell.className = 'corner-cell';
     rowNumbers.appendChild(cornerCell);
     
-    // Add row numbers
+    // Add row numbers with IDs
     for (let i = 0; i < this.rows; i++) {
       const rowContainer = document.createElement('div');
       rowContainer.className = 'row-container';
       
       const rowNumber = document.createElement('div');
       rowNumber.className = 'row-number';
+      rowNumber.id = `row${i + 1}`; // Add unique ID
+      rowNumber.dataset.index = i.toString(); // Add data attribute for easier selection
       rowNumber.textContent = (i + 1).toString();
       
       const rowResizeHandle = document.createElement('div');
@@ -302,7 +304,7 @@ export class Spreadsheet {
     }
     gridContainer.appendChild(rowNumbers);
 
-    // Create columns A-Z
+    // Create columns A-Z with IDs
     for (let col = 0; col < this.cols; col++) {
       const column = document.createElement('div');
       column.className = 'column';
@@ -313,7 +315,9 @@ export class Spreadsheet {
       
       const header = document.createElement('div');
       header.className = 'column-header';
-      header.textContent = String.fromCharCode(65 + col);
+      const colName = String.fromCharCode(65 + col);
+      header.id = `col${colName}`; // Add unique ID
+      header.textContent = colName;
       
       const colResizeHandle = document.createElement('div');
       colResizeHandle.className = 'col-resize-handle';
@@ -338,7 +342,7 @@ export class Spreadsheet {
       }
       gridContainer.appendChild(column);
     }
-
+    
     this.container.appendChild(gridContainer);
   }
 
@@ -790,6 +794,9 @@ export class Spreadsheet {
     // Clear previous selection except active cell
     const selectedCells = document.querySelectorAll('.cell.selected:not(.active)');
     selectedCells.forEach(cell => cell.classList.remove('selected'));
+    
+    // Clear previous header highlights
+    this.highlightHeaders(0, this.rows - 1, 0, this.cols - 1, false);
 
     // Get the range to select using the anchor point
     const minRow = Math.min(this.selectionAnchor.row, newRow);
@@ -807,6 +814,9 @@ export class Spreadsheet {
         }
       }
     }
+
+    // Highlight headers for selected range
+    this.highlightHeaders(minRow, maxRow, minCol, maxCol, true);
 
     // Update active cell
     const newCellId = getCellId(newRow, newCol);
@@ -925,9 +935,12 @@ export class Spreadsheet {
     
     selectedCells.forEach(cell => {
       if (cell !== editingCell) {
-        cell.classList.remove('selected', 'active'); // Remove both classes
+        cell.classList.remove('selected', 'active');
       }
     });
+
+    // Clear header highlights
+    this.highlightHeaders(0, this.rows - 1, 0, this.cols - 1, false);
   }
 
   private updateSelection(): void {
@@ -1413,6 +1426,34 @@ export class Spreadsheet {
     this.activeCell = cell;
     this.activeCell.classList.add('selected', 'active');
     this.updateFormulaBar(cell.dataset.cellId);
+  }
+
+  private highlightHeaders(minRow: number, maxRow: number, minCol: number, maxCol: number, highlight: boolean): void {
+    // Highlight column headers
+    for (let col = minCol; col <= maxCol; col++) {
+      const colName = String.fromCharCode(65 + col);
+      const colHeader = document.querySelector(`#col${colName}`); // e.g., #colA, #colB
+      if (colHeader) {
+        if (highlight) {
+          colHeader.classList.add('selected');
+        } else {
+          colHeader.classList.remove('selected');
+        }
+      }
+    }
+
+    // Highlight row headers
+    for (let row = minRow; row <= maxRow; row++) {
+      const rowNum = row + 1;
+      const rowHeader = document.querySelector(`#row${rowNum}`); // e.g., #row1, #row2
+      if (rowHeader) {
+        if (highlight) {
+          rowHeader.classList.add('selected');
+        } else {
+          rowHeader.classList.remove('selected');
+        }
+      }
+    }
   }
 }
 

@@ -938,4 +938,17 @@ body {
 #spreadsheet-container {
   position: relative;
   /* ... rest of the styles ... */
+}
+
+.column-header.selected,
+.row-header.selected {
+  background-color: var(--primary-blue-transparent);
+}
+
+.header-cell.selected {
+  background-color: var(--primary-blue-transparent);
+}
+
+.row-number.selected {
+  background-color: var(--primary-blue-transparent);
 } 
