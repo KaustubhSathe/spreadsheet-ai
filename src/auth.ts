@@ -34,11 +34,31 @@ async function handleGitHubLogin() {
   }
 }
 
+// Add Google sign in function
+async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`
+    }
+  });
+  
+  if (error) {
+    console.error('Error signing in with Google:', error.message);
+  }
+}
+
 // Initialize login button handler
 document.addEventListener('DOMContentLoaded', () => {
   const loginButton = document.getElementById('github-login-btn');
   if (loginButton) {
     loginButton.addEventListener('click', handleGitHubLogin);
+  }
+
+  // Add Google button listener
+  const googleButton = document.getElementById('google-login-btn');
+  if (googleButton) {
+    googleButton.addEventListener('click', signInWithGoogle);
   }
 });
 

@@ -122,4 +122,50 @@ body {
 
 .logout-button:hover {
   background: var(--background-hover);
+}
+
+/* Add these styles for the Google button */
+.google-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #dadce0;  /* Google's border color */
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #3c4043;  /* Google's text color */
+  margin: 0 auto;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);  /* Subtle shadow */
+}
+
+.google-button:hover {
+  background: #f8f9fa;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border-color: #dadce0;
+}
+
+.google-button:active {
+  background: #f1f3f4;
+  border-color: #dadce0;
+  box-shadow: none;
+}
+
+.google-button:focus {
+  outline: none;
+  border-color: #4285f4;  /* Google blue */
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);  /* Google blue with opacity */
+}
+
+.google-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
 } 
