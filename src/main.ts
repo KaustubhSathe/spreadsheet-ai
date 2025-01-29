@@ -132,6 +132,13 @@ export class Spreadsheet {
     this.setupFormulaBar();
     this.setupSheetTabs();
     this.setupProfileDropdown();
+    this.setupFileMenu();
+    this.setupEditMenu();
+    this.setupViewMenu();
+    this.setupInsertMenu();
+    this.setupFormatMenu();
+    this.setupHelpMenu();
+    this.setupGlobalClickHandler();
     this.attachEventListeners();
     this.loadSpreadsheet();
   }
@@ -342,7 +349,7 @@ export class Spreadsheet {
       }
       gridContainer.appendChild(column);
     }
-    
+
     this.container.appendChild(gridContainer);
   }
 
@@ -537,7 +544,7 @@ export class Spreadsheet {
 
   private startEditing(cell: HTMLElement): void {
     const content = cell.querySelector('.cell-content') as HTMLElement;
-    const cellId = cell.dataset.cellId!;
+        const cellId = cell.dataset.cellId!;
     const cellData = this.data[cellId];
     
     // Show formula if exists, otherwise show value
@@ -587,7 +594,7 @@ export class Spreadsheet {
       this.hf.setCellContents({ sheet: 0, row, col }, stringValue);
       const computed = this.hf.getCellValue({ sheet: 0, row, col });
       
-      this.data[cellId] = {
+    this.data[cellId] = {
         value: stringValue,
         formula: stringValue,
         computed: computed?.toString() || '#ERROR!'
@@ -686,7 +693,7 @@ export class Spreadsheet {
       }
 
       // Update formula bar
-      const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+    const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
       formulaInput.value = value;
 
     } catch (error) {
@@ -719,7 +726,7 @@ export class Spreadsheet {
       if (computed !== null) {
         const computedValue = computed.toString();
         const cell = document.querySelector(`[data-cell-id="${cellId}"] .cell-content`) as HTMLElement;
-        if (cell) {
+      if (cell) {
           cell.textContent = computedValue;
           this.data[cellId].computed = computedValue;
         }
@@ -1136,7 +1143,7 @@ export class Spreadsheet {
             value = '';
           }
           
-          this.updateCell(cellId, value);
+        this.updateCell(cellId, value);
         }
       }
     } else {
@@ -1454,6 +1461,690 @@ export class Spreadsheet {
         }
       }
     }
+  }
+
+  private setupFileMenu(): void {
+    const fileMenu = document.querySelector('.menu-item:first-child');
+    if (!fileMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+    
+    const menuItems = [
+      { label: 'New spreadsheet', icon: 'add', action: () => window.location.href = '/dashboard' },
+      { label: 'Open a CSV', icon: 'upload_file', action: () => this.openCSVFile() },
+      { label: 'Make a copy', icon: 'content_copy', action: this.makeSpreadsheetCopy.bind(this) },
+      { label: 'Download as CSV', icon: 'download', action: this.downloadAsCSV.bind(this) },
+      null, // separator
+      { label: 'Rename', icon: 'drive_file_rename_outline', action: this.focusTitleInput.bind(this) },
+      { label: 'Move to trash', icon: 'delete', action: this.moveToTrash.bind(this) },
+      null, // separator
+      { label: 'Details', icon: 'info', action: this.showDetails.bind(this) }
+    ];
+
+    menuItems.forEach(item => {
+      if (!item) {
+        const separator = document.createElement('div');
+        separator.className = 'menu-dropdown-separator';
+        dropdown.appendChild(separator);
+        return;
+      }
+
+      const menuItem = document.createElement('div');
+      menuItem.className = 'menu-dropdown-item';
+      menuItem.innerHTML = `
+        <span class="material-icons">${item.icon}</span>
+        ${item.label}
+      `;
+      menuItem.addEventListener('click', item.action);
+      dropdown.appendChild(menuItem);
+    });
+
+    fileMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    fileMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close all other menus first
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
+  }
+
+  private setupEditMenu(): void {
+    const editMenu = document.querySelector('.menu-item:nth-child(2)');
+    if (!editMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+    
+    const menuItems = [
+      { 
+        label: 'Undo', 
+        icon: 'undo', 
+        shortcut: 'Ctrl+Z'
+      },
+      { 
+        label: 'Redo', 
+        icon: 'redo', 
+        shortcut: 'Ctrl+Y'
+      },
+      null, // separator
+      { 
+        label: 'Cut', 
+        icon: 'content_cut', 
+        shortcut: 'Ctrl+X'
+      },
+      { 
+        label: 'Copy', 
+        icon: 'content_copy', 
+        shortcut: 'Ctrl+C'
+      },
+      { 
+        label: 'Paste', 
+        icon: 'content_paste', 
+        shortcut: 'Ctrl+V'
+      },
+      null, // separator
+      { 
+        label: 'Delete', 
+        icon: 'backspace', 
+        shortcut: 'Delete'
+      }
+    ];
+
+    menuItems.forEach(item => {
+      if (!item) {
+        const separator = document.createElement('div');
+        separator.className = 'menu-dropdown-separator';
+        dropdown.appendChild(separator);
+        return;
+      }
+
+      const menuItem = document.createElement('div');
+      menuItem.className = 'menu-dropdown-item';
+      menuItem.innerHTML = `
+        <div class="menu-item-left">
+          <span class="material-icons">${item.icon}</span>
+          ${item.label}
+        </div>
+        <span class="shortcut">${item.shortcut}</span>
+      `;
+      dropdown.appendChild(menuItem);
+    });
+
+    editMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    editMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close all other menus first
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
+  }
+
+  private setupViewMenu(): void {
+    const viewMenu = document.querySelector('.menu-item:nth-child(3)');
+    if (!viewMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+    
+    // Show submenu items
+    const showSubmenu = document.createElement('div');
+    showSubmenu.className = 'submenu-item';
+    showSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">visibility</span>
+        <span>Show</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const showDropdown = document.createElement('div');
+    showDropdown.className = 'submenu-dropdown';
+    showDropdown.innerHTML = `
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>Formula bar</span>
+        </div>
+        <span class="material-icons">check</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>Toolbar</span>
+        </div>
+        <span class="material-icons">check</span>
+      </div>
+    `;
+    showSubmenu.appendChild(showDropdown);
+
+    // Zoom submenu items
+    const zoomSubmenu = document.createElement('div');
+    zoomSubmenu.className = 'submenu-item';
+    zoomSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">zoom_in</span>
+        <span>Zoom</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const zoomDropdown = document.createElement('div');
+    zoomDropdown.className = 'submenu-dropdown';
+    const zoomLevels = ['50%', '75%', '90%', '100%', '125%', '150%', '200%'];
+    zoomLevels.forEach(level => {
+      const item = document.createElement('div');
+      item.className = 'menu-dropdown-item';
+      item.innerHTML = `
+        <div class="menu-item-left">
+          <span>${level}</span>
+        </div>
+        ${level === '100%' ? '<span class="material-icons">check</span>' : ''}
+      `;
+      zoomDropdown.appendChild(item);
+    });
+    zoomSubmenu.appendChild(zoomDropdown);
+
+    // Full screen item
+    const fullScreenItem = document.createElement('div');
+    fullScreenItem.className = 'menu-dropdown-item';
+    fullScreenItem.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">fullscreen</span>
+        <span>Full screen</span>
+      </div>
+      <span class="shortcut">F11</span>
+    `;
+
+    // Add all items to dropdown
+    dropdown.appendChild(showSubmenu);
+    dropdown.appendChild(zoomSubmenu);
+    dropdown.appendChild(document.createElement('div')).className = 'menu-dropdown-separator';
+    dropdown.appendChild(fullScreenItem);
+
+    viewMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    viewMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
+  }
+
+  private setupGlobalClickHandler(): void {
+    // Close all menus when clicking outside
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        menu.classList.remove('active');
+      });
+    });
+  }
+
+  private openCSVFile(): void {
+    // Implementation of openCSVFile method
+  }
+
+  private makeSpreadsheetCopy(): void {
+    // Implementation of makeSpreadsheetCopy method
+  }
+
+  private downloadAsCSV(): void {
+    // Implementation of downloadAsCSV method
+  }
+
+  private focusTitleInput(): void {
+    // Implementation of focusTitleInput method
+  }
+
+  private moveToTrash(): void {
+    // Implementation of moveToTrash method
+  }
+
+  private showDetails(): void {
+    // Implementation of showDetails method
+  }
+
+  private setupInsertMenu(): void {
+    const insertMenu = document.querySelector('.menu-item:nth-child(4)');
+    if (!insertMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+
+    // Rows submenu
+    const rowsSubmenu = document.createElement('div');
+    rowsSubmenu.className = 'submenu-item';
+    rowsSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">table_rows</span>
+        <span>Rows</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const rowsDropdown = document.createElement('div');
+    rowsDropdown.className = 'submenu-dropdown';
+    rowsDropdown.innerHTML = `
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>1 row above</span>
+        </div>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>1 row below</span>
+        </div>
+      </div>
+    `;
+    rowsSubmenu.appendChild(rowsDropdown);
+
+    // Columns submenu
+    const columnsSubmenu = document.createElement('div');
+    columnsSubmenu.className = 'submenu-item';
+    columnsSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">view_column</span>
+        <span>Columns</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const columnsDropdown = document.createElement('div');
+    columnsDropdown.className = 'submenu-dropdown';
+    columnsDropdown.innerHTML = `
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>1 column left</span>
+        </div>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span>1 column right</span>
+        </div>
+      </div>
+    `;
+    columnsSubmenu.appendChild(columnsDropdown);
+
+    // Functions submenu
+    const functionsSubmenu = document.createElement('div');
+    functionsSubmenu.className = 'submenu-item';
+    functionsSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">functions</span>
+        <span>Function</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const functionGroups = {
+      'Date': ['DATE', 'DAY', 'MONTH', 'YEAR', 'NOW', 'TODAY'],
+      'Logical': ['IF', 'AND', 'OR', 'NOT', 'TRUE', 'FALSE'],
+      'Math': ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'ROUND'],
+      'Statistical': ['MEDIAN', 'MODE', 'STDEV', 'VAR'],
+      'Text': ['CONCAT', 'LEFT', 'RIGHT', 'MID', 'LEN', 'LOWER', 'UPPER'],
+      'Engineering': ['DEC2BIN', 'BIN2DEC', 'DEC2HEX', 'HEX2DEC'],
+    };
+
+    const functionsDropdown = document.createElement('div');
+    functionsDropdown.className = 'submenu-dropdown function-dropdown';
+    
+    Object.entries(functionGroups).forEach(([group, functions]) => {
+      const groupItem = document.createElement('div');
+      groupItem.className = 'submenu-item';
+      groupItem.innerHTML = `
+        <div class="menu-item-left">
+          <span>${group}</span>
+        </div>
+        <span class="material-icons submenu-arrow">arrow_right</span>
+      `;
+
+      const functionsList = document.createElement('div');
+      functionsList.className = 'submenu-dropdown';
+      functions.forEach(func => {
+        functionsList.innerHTML += `
+          <div class="menu-dropdown-item">
+            <div class="menu-item-left">
+              <span>${func}</span>
+            </div>
+          </div>
+        `;
+      });
+      
+      groupItem.appendChild(functionsList);
+      functionsDropdown.appendChild(groupItem);
+    });
+    
+    functionsSubmenu.appendChild(functionsDropdown);
+
+    // Create regular menu items
+    const menuItems = [
+      rowsSubmenu,
+      columnsSubmenu,
+      null,
+      {
+        label: 'Sheet',
+        icon: 'post_add',
+        shortcut: 'Shift+F11'
+      },
+      {
+        label: 'Image',
+        icon: 'image',
+        shortcut: ''
+      },
+      functionsSubmenu,
+      null,
+      {
+        label: 'Checkbox',
+        icon: 'check_box',
+        shortcut: ''
+      },
+      {
+        label: 'Dropdown',
+        icon: 'arrow_drop_down_circle',
+        shortcut: ''
+      },
+      {
+        label: 'Emoji',
+        icon: 'emoji_emotions',
+        shortcut: ''
+      },
+      null,
+      {
+        label: 'Comment',
+        icon: 'comment',
+        shortcut: 'Ctrl+Alt+M'
+      },
+      {
+        label: 'Note',
+        icon: 'note',
+        shortcut: 'Shift+F2'
+      }
+    ];
+
+    menuItems.forEach(item => {
+      if (!item) {
+        const separator = document.createElement('div');
+        separator.className = 'menu-dropdown-separator';
+        dropdown.appendChild(separator);
+        return;
+      }
+
+      if (item instanceof Element) {
+        dropdown.appendChild(item);
+      } else {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'menu-dropdown-item';
+        menuItem.innerHTML = `
+          <div class="menu-item-left">
+            <span class="material-icons">${item.icon}</span>
+            <span>${item.label}</span>
+          </div>
+          ${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ''}
+        `;
+        dropdown.appendChild(menuItem);
+      }
+    });
+
+    insertMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    insertMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
+  }
+
+  private setupFormatMenu(): void {
+    const formatMenu = document.querySelector('.menu-item:nth-child(5)');
+    if (!formatMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+
+    // Text formatting submenu
+    const textSubmenu = document.createElement('div');
+    textSubmenu.className = 'submenu-item';
+    textSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">text_format</span>
+        <span>Text</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const textDropdown = document.createElement('div');
+    textDropdown.className = 'submenu-dropdown';
+    textDropdown.innerHTML = `
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_bold</span>
+          <span>Bold</span>
+        </div>
+        <span class="shortcut">Ctrl+B</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_italic</span>
+          <span>Italic</span>
+        </div>
+        <span class="shortcut">Ctrl+I</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_underlined</span>
+          <span>Underline</span>
+        </div>
+        <span class="shortcut">Ctrl+U</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">strikethrough_s</span>
+          <span>Strikethrough</span>
+        </div>
+        <span class="shortcut">Alt+Shift+5</span>
+      </div>
+    `;
+    textSubmenu.appendChild(textDropdown);
+
+    // Alignment submenu
+    const alignmentSubmenu = document.createElement('div');
+    alignmentSubmenu.className = 'submenu-item';
+    alignmentSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">format_align_left</span>
+        <span>Alignment</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const alignmentDropdown = document.createElement('div');
+    alignmentDropdown.className = 'submenu-dropdown';
+    alignmentDropdown.innerHTML = `
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_align_left</span>
+          <span>Left</span>
+        </div>
+        <span class="shortcut">Ctrl+Shift+L</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_align_center</span>
+          <span>Center</span>
+        </div>
+        <span class="shortcut">Ctrl+Shift+C</span>
+      </div>
+      <div class="menu-dropdown-item">
+        <div class="menu-item-left">
+          <span class="material-icons">format_align_right</span>
+          <span>Right</span>
+        </div>
+        <span class="shortcut">Ctrl+Shift+R</span>
+      </div>
+    `;
+    alignmentSubmenu.appendChild(alignmentDropdown);
+
+    // Font size submenu
+    const fontSizeSubmenu = document.createElement('div');
+    fontSizeSubmenu.className = 'submenu-item';
+    fontSizeSubmenu.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">format_size</span>
+        <span>Font size</span>
+      </div>
+      <span class="material-icons submenu-arrow">arrow_right</span>
+    `;
+
+    const fontSizeDropdown = document.createElement('div');
+    fontSizeDropdown.className = 'submenu-dropdown font-size-dropdown';
+    
+    // Generate font sizes from 6 to 36 with step of 2
+    for (let size = 6; size <= 36; size += 2) {
+      fontSizeDropdown.innerHTML += `
+        <div class="menu-dropdown-item">
+          <div class="menu-item-left">
+            <span>${size}</span>
+          </div>
+          ${size === 11 ? '<span class="material-icons">check</span>' : ''}
+        </div>
+      `;
+    }
+    fontSizeSubmenu.appendChild(fontSizeDropdown);
+
+    // Create regular menu items
+    const menuItems = [
+      textSubmenu,
+      alignmentSubmenu,
+      fontSizeSubmenu,
+      null,
+      {
+        label: 'Clear formatting',
+        icon: 'format_clear',
+        shortcut: 'Ctrl+\\'
+      }
+    ];
+
+    menuItems.forEach(item => {
+      if (!item) {
+        const separator = document.createElement('div');
+        separator.className = 'menu-dropdown-separator';
+        dropdown.appendChild(separator);
+        return;
+      }
+
+      if (item instanceof Element) {
+        dropdown.appendChild(item);
+      } else {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'menu-dropdown-item';
+        menuItem.innerHTML = `
+          <div class="menu-item-left">
+            <span class="material-icons">${item.icon}</span>
+            <span>${item.label}</span>
+          </div>
+          ${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ''}
+        `;
+        dropdown.appendChild(menuItem);
+      }
+    });
+
+    formatMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    formatMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
+  }
+
+  private setupHelpMenu(): void {
+    const helpMenu = document.querySelector('.menu-item:last-child');
+    if (!helpMenu) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'menu-dropdown';
+
+    const menuItems = [
+      {
+        label: 'Functions list',
+        icon: 'functions',
+        shortcut: ''
+      },
+      {
+        label: 'Keyboard shortcuts',
+        icon: 'keyboard',
+        shortcut: 'Ctrl+/'
+      },
+      null, // separator
+      {
+        label: 'Privacy policy',
+        icon: 'privacy_tip',
+        shortcut: ''
+      },
+      {
+        label: 'Terms of service',
+        icon: 'description',
+        shortcut: ''
+      }
+    ];
+
+    menuItems.forEach(item => {
+      if (!item) {
+        const separator = document.createElement('div');
+        separator.className = 'menu-dropdown-separator';
+        dropdown.appendChild(separator);
+        return;
+      }
+
+      const menuItem = document.createElement('div');
+      menuItem.className = 'menu-dropdown-item';
+      menuItem.innerHTML = `
+        <div class="menu-item-left">
+          <span class="material-icons">${item.icon}</span>
+          <span>${item.label}</span>
+        </div>
+        ${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ''}
+      `;
+      dropdown.appendChild(menuItem);
+    });
+
+    helpMenu.appendChild(dropdown);
+
+    // Add click handler to toggle menu
+    helpMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-dropdown').forEach(menu => {
+        if (menu !== dropdown) {
+          menu.classList.remove('active');
+        }
+      });
+      dropdown.classList.toggle('active');
+    });
   }
 }
 
