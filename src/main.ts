@@ -1493,8 +1493,9 @@ export class Spreadsheet {
       const menuItem = document.createElement('div');
       menuItem.className = 'menu-dropdown-item';
       menuItem.innerHTML = `
-        <span class="material-icons">${item.icon}</span>
-        ${item.label}
+        <div class="menu-item-left">
+          <span class="material-icons">${item.icon}</span><span>${item.label}</span>
+        </div>
       `;
       menuItem.addEventListener('click', item.action);
       dropdown.appendChild(menuItem);
@@ -1505,7 +1506,6 @@ export class Spreadsheet {
     // Add click handler to toggle menu
     fileMenu.addEventListener('click', (e) => {
       e.stopPropagation();
-      // Close all other menus first
       document.querySelectorAll('.menu-dropdown').forEach(menu => {
         if (menu !== dropdown) {
           menu.classList.remove('active');
@@ -1582,7 +1582,6 @@ export class Spreadsheet {
     // Add click handler to toggle menu
     editMenu.addEventListener('click', (e) => {
       e.stopPropagation();
-      // Close all other menus first
       document.querySelectorAll('.menu-dropdown').forEach(menu => {
         if (menu !== dropdown) {
           menu.classList.remove('active');
