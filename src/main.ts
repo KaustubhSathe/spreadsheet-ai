@@ -1552,6 +1552,9 @@ export class Spreadsheet {
         }
       }
     }
+
+    // Sync format buttons with cell styles
+    this.syncFormatButtons(cell);
   }
 
   private highlightHeaders(minRow: number, maxRow: number, minCol: number, maxCol: number, highlight: boolean): void {
@@ -2449,101 +2452,113 @@ export class Spreadsheet {
     const toolbar = document.querySelector('.toolbar');
     if (!toolbar) return;
 
-    // Setup font select dropdown
-    const fontSelect = toolbar.querySelector('.font-select') as HTMLSelectElement;
-    if (fontSelect) {
-      fontSelect.addEventListener('change', (e) => {
-        const font = (e.target as HTMLSelectElement).value;
-        this.applyFontToSelectedCells(font);
-      });
-    }
+    // Text formatting buttons
+    const formatButtons = {
+      bold: toolbar.querySelector('[title="Bold"]'),
+      italic: toolbar.querySelector('[title="Italic"]'),
+      underline: toolbar.querySelector('[title="Underline"]'),
+      strikethrough: toolbar.querySelector('[title="Strikethrough"]')
+    };
 
-    // Setup font size dropdown
-    const fontSizeSelect = toolbar.querySelector('.font-size') as HTMLSelectElement;
-    if (fontSizeSelect) {
-      fontSizeSelect.addEventListener('change', (e) => {
-        const fontSize = (e.target as HTMLSelectElement).value;
-        this.applyFontSizeToSelectedCells(`${fontSize}px`);
-      });
-    }
-
-    // Add click handlers for toolbar buttons
-    toolbar.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const button = target.closest('.tool-btn');
-      if (!button) return;
-
-      const icon = button.querySelector('.material-icons')?.textContent;
-      switch (icon) {
-        case 'undo':
-          document.execCommand('undo');
-          break;
-        case 'redo':
-          document.execCommand('redo');
-          break;
-        case 'print':
-          window.print();
-          break;
-        case 'content_copy':
-          this.handleCopy();
-          break;
-        // ... other toolbar button handlers
+    // Add click handlers for text formatting
+    Object.entries(formatButtons).forEach(([format, button]) => {
+      if (button instanceof HTMLElement) {
+        button.addEventListener('click', () => {
+          this.toggleTextFormat(format as keyof typeof formatButtons);
+        });
       }
     });
   }
 
-  private applyFontToSelectedCells(fontFamily: string): void {
-    let selectedCells: NodeListOf<Element> | [HTMLElement] = document.querySelectorAll('.cell.selected');
-    if (!selectedCells.length && this.activeCell) {
-      // If no selection but has active cell, apply to active cell
-      selectedCells = [this.activeCell];
-    }
-
-    selectedCells.forEach((cell) => {
-      const cellId = cell.getAttribute('data-cell-id');
-      if (!cellId) return;
-
-      // Update the cell's style
-      const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
-      if (contentDiv) {
-        contentDiv.style.fontFamily = fontFamily;
-      }
-
-      // Store the style in the data
-      if (!this.data[cellId]) {
-        this.data[cellId] = { value: '', formula: '', computed: '' };
-      }
-      if (!this.data[cellId].styles) {
-        this.data[cellId].styles = {};
-      }
-      this.data[cellId].styles.fontFamily = fontFamily;
-    });
-  }
-
-  private applyFontSizeToSelectedCells(fontSize: string): void {
+  private toggleTextFormat(format: 'bold' | 'italic' | 'underline' | 'strikethrough'): void {
     const selectedCells: NodeListOf<Element> = document.querySelectorAll('.cell.selected');
     const cells: Element[] = this.activeCell ? 
       [this.activeCell, ...Array.from(selectedCells)] : 
-      Array.from(selectedCells) as Element[];
+      Array.from(selectedCells);
 
-    cells.forEach((cell: HTMLElement) => {
-      const cellId: string | null = cell.getAttribute('data-cell-id');
+    // Get the button to toggle its state
+    const button = document.querySelector(`[title="${format.charAt(0).toUpperCase() + format.slice(1)}"]`);
+    const isActive = button?.classList.contains('active');
+
+    // Map format to style property
+    const styleMap: Record<typeof format, string> = {
+      bold: 'fontWeight',
+      italic: 'fontStyle',
+      underline: 'textDecoration',
+      strikethrough: 'textDecoration'
+    };
+
+    // Map format to style value
+    const valueMap: Record<typeof format, string> = {
+      bold: 'bold',
+      italic: 'italic',
+      underline: 'underline',
+      strikethrough: 'line-through'
+    };
+
+    cells.forEach((cell) => {
+      const cellId = cell.getAttribute('data-cell-id');
       if (!cellId) return;
 
-      // Update the cell's style
-      const contentDiv: HTMLElement | null = cell.querySelector('.cell-content');
-      if (contentDiv) {
-        contentDiv.style.fontSize = fontSize;
-      }
+      const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+      if (!contentDiv) return;
 
-      // Store the style in the data
+      // Initialize cell data if needed
       if (!this.data[cellId]) {
         this.data[cellId] = { value: '', formula: '', computed: '' };
       }
       if (!this.data[cellId].styles) {
         this.data[cellId].styles = {};
       }
-      this.data[cellId].styles.fontSize = fontSize;
+
+      // Toggle the style
+      if (format === 'underline' || format === 'strikethrough') {
+        const currentDecoration = contentDiv.style.textDecoration || '';
+        const decorations = new Set(currentDecoration.split(' ').filter(Boolean));
+        
+        if (!isActive) {
+          decorations.add(valueMap[format]);
+        } else {
+          decorations.delete(valueMap[format]);
+        }
+        
+        const newDecoration = Array.from(decorations).join(' ');
+        contentDiv.style.textDecoration = newDecoration;
+        this.data[cellId].styles.textDecoration = newDecoration;
+      } else {
+        const styleProperty = styleMap[format];
+        const newValue = !isActive ? valueMap[format] : '';
+        contentDiv.style[styleProperty] = newValue;
+        this.data[cellId].styles[styleProperty] = newValue;
+      }
+    });
+
+    // Toggle button state
+    if (button) {
+      button.classList.toggle('active');
+    }
+  }
+
+  private syncFormatButtons(cell: HTMLElement): void {
+    const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+    if (!contentDiv) return;
+
+    const formats = {
+      bold: contentDiv.style.fontWeight === 'bold',
+      italic: contentDiv.style.fontStyle === 'italic',
+      underline: (contentDiv.style.textDecoration || '').includes('underline'),
+      strikethrough: (contentDiv.style.textDecoration || '').includes('line-through')
+    };
+
+    Object.entries(formats).forEach(([format, isActive]) => {
+      const button = document.querySelector(`[title="${format.charAt(0).toUpperCase() + format.slice(1)}"]`);
+      if (button) {
+        if (isActive) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      }
     });
   }
 }

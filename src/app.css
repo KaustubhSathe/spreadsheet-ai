@@ -265,10 +265,15 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
 .tool-btn:hover {
-  background: var(--background-hover);
+  background-color: var(--background-hover);
+}
+
+.tool-btn.active {
+  background-color: var(--background-dark);
 }
 
 .formula-bar {
@@ -609,19 +614,6 @@ body {
   width: 1px;
   height: 24px;
   background: var(--border-dark);
-}
-
-.tool-btn {
-  border: none;
-  background: none;
-  padding: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.tool-btn:hover {
-  background: var(--background-hover);
 }
 
 .font-select, .font-size {
