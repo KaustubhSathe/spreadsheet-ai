@@ -489,6 +489,7 @@ body {
   padding: 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
+  margin-right: 8px;
 }
 
 .spreadsheet-icon:hover {
@@ -499,7 +500,8 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  position: relative;
 }
 
 .title-input {
@@ -507,6 +509,7 @@ body {
   border: none;
   padding: 4px 8px;
   border-radius: 4px;
+  width: 200px;
 }
 
 .title-input:hover {
@@ -521,6 +524,7 @@ body {
 .title-buttons {
   display: flex;
   gap: 8px;
+  position: relative;
 }
 
 .star-button {
@@ -1164,4 +1168,53 @@ body {
 
 .font-size-dropdown::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
+}
+
+.comment-button {
+  border: none;
+  background: none;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.comment-button:hover {
+  background: var(--background-hover);
+}
+
+.comment-button .material-icons-outlined {
+  font-size: 20px;
+}
+
+.save-indicator {
+  position: static;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #1b8e3c;
+  color: white;
+  opacity: 0;
+  transition: all 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+  margin: 0 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.save-indicator.visible {
+  opacity: 1;
+}
+
+.save-indicator.error {
+  background: #d93025; /* Red background for error */
+  color: white;
+}
+
+/* Add loading state */
+.save-indicator.loading {
+  background: #666; /* Gray background for loading */
 } 

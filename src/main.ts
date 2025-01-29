@@ -134,7 +134,7 @@ export class Spreadsheet {
       spreadsheetIcon.addEventListener('click', () => {
         window.location.href = '/dashboard';
       });
-      spreadsheetIcon.style.cursor = 'pointer'; // Add pointer cursor
+      spreadsheetIcon.style.cursor = 'pointer';
     }
 
     this.createSpreadsheet();
@@ -147,6 +147,7 @@ export class Spreadsheet {
     this.setupInsertMenu();
     this.setupFormatMenu();
     this.setupHelpMenu();
+    this.setupTitleInput();
     this.setupGlobalClickHandler();
     this.attachEventListeners();
     this.loadSpreadsheet();
@@ -2153,6 +2154,75 @@ export class Spreadsheet {
       });
       dropdown.classList.toggle('active');
     });
+  }
+
+  private setupTitleInput(): void {
+    const titleInput = document.querySelector('.title-input') as HTMLInputElement;
+    if (!titleInput) return;
+
+    // Create save indicator element
+    const saveIndicator = document.createElement('div');
+    saveIndicator.className = 'save-indicator';
+    titleInput.parentElement?.appendChild(saveIndicator);
+
+    // Create a debounced save function
+    const debouncedSave = this.debounce(async (title: string) => {
+      try {
+        saveIndicator.textContent = 'Saving...';
+        saveIndicator.classList.add('visible', 'loading');
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const { error } = await supabase.functions.invoke('save-spreadsheet', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            spreadsheetId: this.spreadsheet?.id,
+            title,
+            sheetId: this.spreadsheet?.sheets[this.activeSheetId]?.id,
+            data: this.data
+          }
+        });
+
+        if (error) throw error;
+
+        saveIndicator.textContent = 'Saved';
+        saveIndicator.classList.remove('loading');
+        setTimeout(() => {
+          saveIndicator.classList.remove('visible');
+        }, 2000);
+
+      } catch (error) {
+        console.error('Error saving title:', error);
+        saveIndicator.textContent = 'Failed to save';
+        saveIndicator.classList.remove('loading');
+        saveIndicator.classList.add('error');
+        setTimeout(() => {
+          saveIndicator.classList.remove('visible', 'error');
+        }, 3000);
+      }
+    }, 500);
+
+    // Add input event listener
+    titleInput.addEventListener('input', (e) => {
+      const title = (e.target as HTMLInputElement).value;
+      debouncedSave(title);
+    });
+  }
+
+  // Debounce utility function
+  private debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+  ): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
   }
 }
 
