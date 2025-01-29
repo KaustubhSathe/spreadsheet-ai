@@ -128,6 +128,15 @@ export class Spreadsheet {
   }
 
   private init(): void {
+    // Add click handler for spreadsheet icon
+    const spreadsheetIcon = document.querySelector('.spreadsheet-icon');
+    if (spreadsheetIcon) {
+      spreadsheetIcon.addEventListener('click', () => {
+        window.location.href = '/dashboard';
+      });
+      spreadsheetIcon.style.cursor = 'pointer'; // Add pointer cursor
+    }
+
     this.createSpreadsheet();
     this.setupFormulaBar();
     this.setupSheetTabs();

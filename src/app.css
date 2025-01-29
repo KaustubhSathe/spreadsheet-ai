@@ -483,7 +483,16 @@ body {
 }
 
 .spreadsheet-icon {
-  margin-right: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.spreadsheet-icon:hover {
+  background: var(--background-hover);
 }
 
 .title-section {
@@ -514,7 +523,7 @@ body {
   gap: 8px;
 }
 
-.star-button, .move-button {
+.star-button {
   border: none;
   background: none;
   padding: 8px;
@@ -522,7 +531,7 @@ body {
   cursor: pointer;
 }
 
-.star-button:hover, .move-button:hover {
+.star-button:hover {
   background: var(--background-hover);
 }
 
