@@ -151,6 +151,8 @@ export class Spreadsheet {
     this.setupGlobalClickHandler();
     this.attachEventListeners();
     this.loadSpreadsheet();
+    this.setupClipboardHandlers();
+    this.setupToolbar();
   }
 
   async loadSpreadsheet() {
@@ -181,7 +183,7 @@ export class Spreadsheet {
           
           // Initialize HyperFormula with all sheets
           spreadsheet.sheets.forEach((sheet, index) => {
-              this.hf.addSheet(`Sheet${sheet.sheet_number}`);
+            this.hf.addSheet(`Sheet${sheet.sheet_number}`);
           });
 
           // Find and set sheet with sheet_number 1 as active
@@ -189,6 +191,19 @@ export class Spreadsheet {
           if (firstSheet) {
             this.activeSheetId = 0; // HyperFormula index for first sheet
             this.data = firstSheet.data || {};
+
+            // Apply stored styles to all cells
+            Object.entries(this.data).forEach(([cellId, cellData]) => {
+              const cell = document.querySelector(`[data-cell-id="${cellId}"]`);
+              if (cell && cellData.styles) {
+                const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+                if (contentDiv) {
+                  Object.entries(cellData.styles).forEach(([property, value]) => {
+                    contentDiv.style[property] = value;
+                  });
+                }
+              }
+            });
     }
 
     this.updateSheetTabs();
@@ -346,21 +361,38 @@ export class Spreadsheet {
       
       // Create cells for this column
       for (let row = 0; row < this.rows; row++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        const cellId = getCellId(row, col);
-        cell.dataset.cellId = cellId;
-        
-        const content = document.createElement('div');
-        content.className = 'cell-content';
-        cell.appendChild(content);
-
+        const cell = this.createCell(row, col);
         column.appendChild(cell);
       }
       gridContainer.appendChild(column);
     }
 
     this.container.appendChild(gridContainer);
+  }
+
+  private createCell(row: number, col: number): HTMLElement {
+        const cell = document.createElement('div');
+    const cellId = this.getCellId(col, row);
+        cell.className = 'cell';
+    cell.setAttribute('data-cell-id', cellId);
+        
+        const content = document.createElement('div');
+        content.className = 'cell-content';
+    
+    // Apply stored styles if they exist
+    if (this.data[cellId]?.styles) {
+      Object.entries(this.data[cellId].styles).forEach(([property, value]) => {
+        content.style[property] = value;
+      });
+    }
+
+    // Set content if exists
+    if (this.data[cellId]) {
+      content.textContent = this.data[cellId].value;
+    }
+
+    cell.appendChild(content);
+    return cell;
   }
 
   private attachEventListeners(): void {
@@ -809,7 +841,7 @@ export class Spreadsheet {
     if (!this.activeCell || !this.selectionAnchor) return;
     
     // Clear previous selection except active cell
-    const selectedCells = document.querySelectorAll('.cell.selected:not(.active)');
+    let selectedCells = document.querySelectorAll('.cell.selected:not(.active)');
     selectedCells.forEach(cell => cell.classList.remove('selected'));
     
     // Clear previous header highlights
@@ -850,6 +882,49 @@ export class Spreadsheet {
     const startCellId = getCellId(this.selectionAnchor.row, this.selectionAnchor.col);
     const endCellId = getCellId(newRow, newCol);
     this.updateFormulaBar(`${startCellId}:${endCellId}`);
+
+    // Check fonts and font sizes of selected cells
+    selectedCells = document.querySelectorAll('.cell.selected');
+    const fontSelect = document.querySelector('.font-select') as HTMLSelectElement;
+    const fontSizeSelect = document.querySelector('.font-size') as HTMLSelectElement;
+
+    if (selectedCells.length > 0) {
+      let commonFont: string | null = null;
+      let commonSize: string | null = null;
+      let hasFontConflict = false;
+      let hasSizeConflict = false;
+
+      selectedCells.forEach((cell) => {
+        const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+        if (contentDiv) {
+          // Check font
+          const currentFont = contentDiv.style.fontFamily || 'Arial';
+          const cleanFont = currentFont.replace(/['"]/g, '');
+          if (commonFont === null) {
+            commonFont = cleanFont;
+          } else if (commonFont !== cleanFont) {
+            hasFontConflict = true;
+          }
+
+          // Check font size
+          const currentSize = contentDiv.style.fontSize || '11px';
+          const sizeNumber = parseInt(currentSize);
+          if (commonSize === null) {
+            commonSize = sizeNumber.toString();
+          } else if (commonSize !== sizeNumber.toString()) {
+            hasSizeConflict = true;
+          }
+        }
+      });
+
+      // Update dropdowns
+      if (fontSelect) {
+        fontSelect.value = hasFontConflict ? '' : (commonFont || 'Arial');
+      }
+      if (fontSizeSelect) {
+        fontSizeSelect.value = hasSizeConflict ? '' : (commonSize || '11');
+      }
+    }
   }
 
   private handleFormulaKeydown = (e: KeyboardEvent) => {
@@ -1437,12 +1512,46 @@ export class Spreadsheet {
   }
 
   private selectCell(cell: HTMLElement): void {
-    if (this.activeCell) {
-      this.activeCell.classList.remove('selected', 'active');
-    }
+    // Remove active state from previous cell
+    this.activeCell?.classList.remove('active');
+    
+    // Set new active cell
     this.activeCell = cell;
-    this.activeCell.classList.add('selected', 'active');
-    this.updateFormulaBar(cell.dataset.cellId);
+    cell.classList.add('active', 'selected');
+
+    // Update cell name display
+    const cellId = cell.getAttribute('data-cell-id');
+    if (cellId) {
+      const cellNameInput = document.getElementById('cell-name') as HTMLInputElement;
+      if (cellNameInput) {
+        cellNameInput.value = cellId;
+      }
+
+      // Update formula input
+      const formulaInput = document.getElementById('formula-input') as HTMLInputElement;
+      if (formulaInput) {
+        formulaInput.value = this.data[cellId]?.formula || '';
+      }
+
+      // Update font select and font size to match cell's styles
+      const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+      if (contentDiv) {
+        const fontSelect = document.querySelector('.font-select') as HTMLSelectElement;
+        const fontSizeSelect = document.querySelector('.font-size') as HTMLSelectElement;
+
+        if (fontSelect) {
+          const currentFont = contentDiv.style.fontFamily || 'Arial';
+          const cleanFont = currentFont.replace(/['"]/g, '');
+          fontSelect.value = cleanFont;
+        }
+
+        if (fontSizeSelect) {
+          const currentSize = contentDiv.style.fontSize || '11px';
+          const sizeNumber = parseInt(currentSize);
+          fontSizeSelect.value = sizeNumber.toString();
+        }
+      }
+    }
   }
 
   private highlightHeaders(minRow: number, maxRow: number, minCol: number, maxCol: number, highlight: boolean): void {
@@ -1531,7 +1640,7 @@ export class Spreadsheet {
 
     const dropdown = document.createElement('div');
     dropdown.className = 'menu-dropdown';
-    
+
     const menuItems = [
       { 
         label: 'Undo', 
@@ -2223,6 +2332,219 @@ export class Spreadsheet {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
     };
+  }
+
+  private setupClipboardHandlers(): void {
+    document.addEventListener('keydown', (e) => {
+      if (!this.activeCell) return;
+
+      if (e.ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            e.preventDefault();
+            this.handleCopy();
+            break;
+          case 'x':
+            e.preventDefault();
+            this.handleCut();
+            break;
+          case 'v':
+            e.preventDefault();
+            this.handlePaste();
+            break;
+        }
+      }
+    });
+  }
+
+  private handleCopy(): void {
+    const selectedCells = document.querySelectorAll('.cell.selected');
+    if (!selectedCells.length) return;
+
+    const clipboardData: { [key: string]: Cell } = {};
+    selectedCells.forEach((cell) => {
+      const cellId = cell.getAttribute('data-cell-id');
+      if (cellId && this.data[cellId]) {
+        clipboardData[cellId] = { ...this.data[cellId] };
+      }
+    });
+
+    // Store in localStorage since clipboard API doesn't support complex data
+    localStorage.setItem('spreadsheet-clipboard', JSON.stringify(clipboardData));
+  }
+
+  private handleCut(): void {
+    this.handleCopy();
+    const selectedCells = document.querySelectorAll('.cell.selected');
+    selectedCells.forEach((cell) => {
+      const cellId = cell.getAttribute('data-cell-id');
+      if (cellId) {
+        delete this.data[cellId];
+        const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+        if (contentDiv) {
+          contentDiv.textContent = '';
+        }
+      }
+    });
+  }
+
+  private handlePaste(): void {
+    if (!this.activeCell) return;
+
+    const clipboardData = localStorage.getItem('spreadsheet-clipboard');
+    if (!clipboardData) return;
+
+    try {
+      const copiedCells = JSON.parse(clipboardData) as { [key: string]: Cell };
+      const copiedCellIds = Object.keys(copiedCells);
+      if (!copiedCellIds.length) return;
+
+      // Get the reference point (top-left cell of copied range)
+      const referenceCell = copiedCellIds[0];
+      const [refCol, refRow] = this.getCellCoordinates(referenceCell);
+
+      // Get target cell coordinates
+      const targetCellId = this.activeCell.getAttribute('data-cell-id');
+      if (!targetCellId) return;
+      const [targetCol, targetRow] = this.getCellCoordinates(targetCellId);
+
+      // Calculate offset
+      const colOffset = targetCol - refCol;
+      const rowOffset = targetRow - refRow;
+
+      // Paste cells with offset
+      Object.entries(copiedCells).forEach(([cellId, cellData]) => {
+        const [col, row] = this.getCellCoordinates(cellId);
+        const newCellId = this.getCellId(col + colOffset, row + rowOffset);
+        
+        // Skip if new position is out of bounds
+        if (col + colOffset >= this.cols || row + rowOffset >= this.rows) return;
+        
+        this.data[newCellId] = { ...cellData };
+        const cell = document.querySelector(`[data-cell-id="${newCellId}"]`);
+        if (cell) {
+          const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+          if (contentDiv) {
+            contentDiv.textContent = cellData.value;
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Error pasting cells:', error);
+    }
+  }
+
+  private getCellCoordinates(cellId: string): [number, number] {
+    const col = cellId.charCodeAt(0) - 65; // Convert A-Z to 0-25
+    const row = parseInt(cellId.slice(1)) - 1;
+    return [col, row];
+  }
+
+  private getCellId(col: number, row: number): string {
+    return `${String.fromCharCode(65 + col)}${row + 1}`;
+  }
+
+  private setupToolbar(): void {
+    const toolbar = document.querySelector('.toolbar');
+    if (!toolbar) return;
+
+    // Setup font select dropdown
+    const fontSelect = toolbar.querySelector('.font-select') as HTMLSelectElement;
+    if (fontSelect) {
+      fontSelect.addEventListener('change', (e) => {
+        const font = (e.target as HTMLSelectElement).value;
+        this.applyFontToSelectedCells(font);
+      });
+    }
+
+    // Setup font size dropdown
+    const fontSizeSelect = toolbar.querySelector('.font-size') as HTMLSelectElement;
+    if (fontSizeSelect) {
+      fontSizeSelect.addEventListener('change', (e) => {
+        const fontSize = (e.target as HTMLSelectElement).value;
+        this.applyFontSizeToSelectedCells(`${fontSize}px`);
+      });
+    }
+
+    // Add click handlers for toolbar buttons
+    toolbar.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('.tool-btn');
+      if (!button) return;
+
+      const icon = button.querySelector('.material-icons')?.textContent;
+      switch (icon) {
+        case 'undo':
+          document.execCommand('undo');
+          break;
+        case 'redo':
+          document.execCommand('redo');
+          break;
+        case 'print':
+          window.print();
+          break;
+        case 'content_copy':
+          this.handleCopy();
+          break;
+        // ... other toolbar button handlers
+      }
+    });
+  }
+
+  private applyFontToSelectedCells(fontFamily: string): void {
+    let selectedCells: NodeListOf<Element> | [HTMLElement] = document.querySelectorAll('.cell.selected');
+    if (!selectedCells.length && this.activeCell) {
+      // If no selection but has active cell, apply to active cell
+      selectedCells = [this.activeCell];
+    }
+
+    selectedCells.forEach((cell) => {
+      const cellId = cell.getAttribute('data-cell-id');
+      if (!cellId) return;
+
+      // Update the cell's style
+      const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+      if (contentDiv) {
+        contentDiv.style.fontFamily = fontFamily;
+      }
+
+      // Store the style in the data
+      if (!this.data[cellId]) {
+        this.data[cellId] = { value: '', formula: '', computed: '' };
+      }
+      if (!this.data[cellId].styles) {
+        this.data[cellId].styles = {};
+      }
+      this.data[cellId].styles.fontFamily = fontFamily;
+    });
+  }
+
+  private applyFontSizeToSelectedCells(fontSize: string): void {
+    const selectedCells: NodeListOf<Element> = document.querySelectorAll('.cell.selected');
+    const cells: Element[] = this.activeCell ? 
+      [this.activeCell, ...Array.from(selectedCells)] : 
+      Array.from(selectedCells) as Element[];
+
+    cells.forEach((cell: HTMLElement) => {
+      const cellId: string | null = cell.getAttribute('data-cell-id');
+      if (!cellId) return;
+
+      // Update the cell's style
+      const contentDiv: HTMLElement | null = cell.querySelector('.cell-content');
+      if (contentDiv) {
+        contentDiv.style.fontSize = fontSize;
+      }
+
+      // Store the style in the data
+      if (!this.data[cellId]) {
+        this.data[cellId] = { value: '', formula: '', computed: '' };
+      }
+      if (!this.data[cellId].styles) {
+        this.data[cellId].styles = {};
+      }
+      this.data[cellId].styles.fontSize = fontSize;
+    });
   }
 }
 

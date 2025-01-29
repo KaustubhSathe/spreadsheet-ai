@@ -2,6 +2,16 @@ export interface Cell {
     value: string;
     formula: string;
     computed: string;
+    styles?: {
+        fontFamily?: string;
+        fontSize?: string;
+        fontWeight?: string;
+        fontStyle?: string;
+        textDecoration?: string;
+        color?: string;
+        backgroundColor?: string;
+        textAlign?: string;
+    };
 }
   
 export interface SpreadsheetData {
