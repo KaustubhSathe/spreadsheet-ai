@@ -154,6 +154,7 @@ export class Spreadsheet {
     this.setupClipboardHandlers();
     this.setupToolbar();
     this.setupThemeToggle();
+    this.setupResizeHandlers();
   }
 
   async loadSpreadsheet() {
@@ -2649,6 +2650,86 @@ export class Spreadsheet {
       const isNowDark = document.documentElement.classList.contains('dark-theme');
       localStorage.setItem('darkTheme', isNowDark.toString());
       themeToggle.querySelector('.theme-check')?.classList.toggle('active', isNowDark);
+    });
+  }
+
+  private setupResizeHandlers(): void {
+    // Column resize
+    document.querySelectorAll('.col-resize-handle').forEach(handle => {
+      handle.addEventListener('mousedown', (e: MouseEvent) => {
+        e.preventDefault();
+        this.isResizing = true;
+        this.resizeStartX = e.clientX;
+        this.resizeElement = (handle as HTMLElement).closest('.column') as HTMLElement;
+        this.initialSize = this.resizeElement.offsetWidth;
+
+        const handleMouseMove = (e: MouseEvent) => {
+          if (!this.isResizing) return;
+          const delta = e.clientX - this.resizeStartX;
+          const newWidth = Math.max(50, this.initialSize + delta); // Minimum width of 50px
+          if (this.resizeElement) {
+            this.resizeElement.style.width = `${newWidth}px`;
+            this.resizeElement.style.minWidth = `${newWidth}px`;
+          }
+        };
+
+        const handleMouseUp = () => {
+          this.isResizing = false;
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+      });
+    });
+
+    // Row resize
+    document.querySelectorAll('.row-resize-handle').forEach(handle => {
+      handle.addEventListener('mousedown', (e: MouseEvent) => {
+        e.preventDefault();
+        this.isResizing = true;
+        this.resizeStartY = e.clientY;
+        this.resizeElement = (handle as HTMLElement).closest('.row-container') as HTMLElement;
+        this.initialSize = this.resizeElement.offsetHeight;
+
+        // Get the row number to find corresponding cells
+        const rowNumber = this.resizeElement.querySelector('.row-number')?.textContent;
+        const cells = document.querySelectorAll(`.cell[data-cell-id$="${rowNumber}"]`);
+
+        const handleMouseMove = (e: MouseEvent) => {
+          if (!this.isResizing) return;
+          const delta = e.clientY - this.resizeStartY;
+          const newHeight = Math.max(25, this.initialSize + delta); // Minimum height of 25px
+          
+          if (this.resizeElement) {
+            // Update row container height
+            this.resizeElement.style.height = `${newHeight}px`;
+            
+            // Update all cells in this row
+            cells.forEach(cell => {
+              (cell as HTMLElement).style.height = `${newHeight}px`;
+              (cell as HTMLElement).style.minHeight = `${newHeight}px`;
+              
+              // Update the cell content div height
+              const contentDiv = cell.querySelector('.cell-content') as HTMLElement;
+              if (contentDiv) {
+                contentDiv.style.height = '100%';
+                contentDiv.style.lineHeight = `${newHeight}px`;
+              }
+            });
+          }
+        };
+
+        const handleMouseUp = () => {
+          this.isResizing = false;
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+      });
     });
   }
 }
