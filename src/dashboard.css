@@ -111,8 +111,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
-  transition: background-color 0.2s;
-  position: relative;
+  transition: all 0.2s;
 }
 
 .new-sheet-btn:hover {
@@ -166,14 +165,14 @@ body {
   position: relative;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: white;
-  transition: background-color 0.2s;
+  background: var(--white);
+  transition: all 0.2s ease;
   overflow: hidden;
 }
 
 .spreadsheet-card:hover {
   border-color: var(--primary-blue);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .card-content {
@@ -398,12 +397,17 @@ body {
 }
 
 .dark-theme .new-sheet-btn {
-  background: var(--primary-blue);
-  color: var(--white);
+  background: rgba(138, 180, 248, 0.2);
+  color: var(--primary-blue);
+  border: 1px solid var(--primary-blue);
 }
 
 .dark-theme .new-sheet-btn:hover {
-  background: var(--primary-blue-hover);
+  background: rgba(138, 180, 248, 0.3);
+}
+
+.dark-theme .new-sheet-btn .material-icons {
+  color: var(--primary-blue);
 }
 
 /* Dark theme specific styles */
@@ -437,4 +441,46 @@ body {
 .dark-theme .theme-toggle-button:hover,
 .dark-theme .logout-button:hover {
   background: var(--background-hover);
+}
+
+/* Update spreadsheet card hover styles for light mode */
+.spreadsheet-card:hover {
+  border-color: var(--primary-blue);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Update dark theme styles for spreadsheet card */
+.dark-theme .spreadsheet-card:hover {
+  border-color: var(--white);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+/* Update new sheet button styles */
+.new-sheet-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+/* Update dark theme new sheet button */
+.dark-theme .new-sheet-btn {
+  background: rgba(138, 180, 248, 0.2);
+  color: var(--primary-blue);
+  border: 1px solid var(--primary-blue);
+}
+
+.dark-theme .new-sheet-btn:hover {
+  background: rgba(138, 180, 248, 0.3);
+}
+
+.dark-theme .new-sheet-btn .material-icons {
+  color: var(--primary-blue);
 } 
