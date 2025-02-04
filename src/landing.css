@@ -168,4 +168,19 @@ body {
   display: flex;
   gap: 1rem;
   justify-content: center;
+}
+
+/* Add dark theme styles */
+.dark-theme {
+  background: var(--background-light);
+}
+
+.dark-theme .nav-bar {
+  background: var(--white);
+  border-color: var(--border-color);
+}
+
+.dark-theme .hero-content h1,
+.dark-theme .hero-content p {
+  color: var(--text-primary);
 } 

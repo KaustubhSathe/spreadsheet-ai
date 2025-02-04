@@ -21,6 +21,26 @@
   --scrollbar-thumb: #dadce0;
   --scrollbar-thumb-hover: #bdc1c6;
   --white: #ffffff;
+  --cell-background: #ffffff;
+}
+
+/* Dark theme variables */
+.dark-theme {
+  --primary-blue: #8ab4f8;
+  --primary-blue-hover: #aecbfa;
+  --primary-blue-transparent: rgba(138, 180, 248, 0.1);
+  --border-color: #3c4043;
+  --border-dark: #5f6368;
+  --background-hover: #35363a;
+  --background-light: #202124;
+  --background-dark: #3c4043;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-tertiary: #9aa0a6;
+  --scrollbar-thumb: #5f6368;
+  --scrollbar-thumb-hover: #7d8085;
+  --white: #202124;
+  --cell-background: #282a2d;
 }
 
 body {
@@ -153,7 +173,7 @@ body {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  background: var(--white);
+  background: var(--cell-background);
 }
 
 .cell-content {
@@ -1209,4 +1229,115 @@ body {
 /* Add loading state */
 .save-indicator.loading {
   background: #666; /* Gray background for loading */
+}
+
+/* Add styles for theme toggle */
+.theme-check {
+  display: none;
+}
+
+.theme-check.active {
+  display: inline-block;
+}
+
+/* Update other components for dark theme */
+.dark-theme .toolbar,
+.dark-theme .formula-bar,
+.dark-theme .menu-dropdown,
+.dark-theme .submenu-dropdown {
+  background: var(--white);
+  color: var(--text-primary);
+}
+
+.dark-theme .cell-content {
+  color: var(--text-primary);
+}
+
+.dark-theme input,
+.dark-theme select {
+  background: var(--white);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.dark-theme .menu-dropdown-item:hover {
+  background: var(--background-hover);
+}
+
+.theme-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.theme-toggle-button:hover {
+  background: var(--background-hover);
+}
+
+.theme-toggle-button .material-icons {
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+
+.theme-toggle-button .theme-check {
+  margin-left: auto;
+  display: none;
+}
+
+.theme-toggle-button .theme-check.active {
+  display: block;
+}
+
+/* Add separator between theme toggle and logout */
+.theme-toggle-button {
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+  padding-bottom: 12px;
+}
+
+/* Update profile dropdown styles for dark theme */
+.dark-theme .profile-dropdown {
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .profile-dropdown::before {
+  background: var(--white);
+  box-shadow: -2px -2px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .logout-button,
+.dark-theme .theme-toggle-button {
+  color: var(--text-primary);
+}
+
+.dark-theme .logout-button:hover,
+.dark-theme .theme-toggle-button:hover {
+  background: var(--background-hover);
+}
+
+.dark-theme .logout-button .material-icons,
+.dark-theme .theme-toggle-button .material-icons {
+  color: var(--text-primary);
+}
+
+.dark-theme .theme-toggle-button {
+  border-bottom-color: var(--border-color);
+}
+
+/* Make dropdown visible when menu is shown */
+.profile-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 } 

@@ -153,6 +153,7 @@ export class Spreadsheet {
     this.loadSpreadsheet();
     this.setupClipboardHandlers();
     this.setupToolbar();
+    this.setupThemeToggle();
   }
 
   async loadSpreadsheet() {
@@ -1268,6 +1269,33 @@ export class Spreadsheet {
     
     if (!accountIcon || !dropdown) return;
 
+    // Add theme toggle before logout button
+    const themeToggle = document.createElement('button');
+    themeToggle.className = 'theme-toggle-button';
+    themeToggle.innerHTML = `
+      <span class="material-icons">dark_mode</span>
+      <span>Dark theme</span>
+      <span class="material-icons theme-check">check</span>
+    `;
+
+    // Initialize theme from localStorage
+    const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+    document.documentElement.classList.toggle('dark-theme', isDarkTheme);
+    themeToggle.querySelector('.theme-check')?.classList.toggle('active', isDarkTheme);
+
+    themeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark-theme');
+      const isNowDark = document.documentElement.classList.contains('dark-theme');
+      localStorage.setItem('darkTheme', isNowDark.toString());
+      themeToggle.querySelector('.theme-check')?.classList.toggle('active', isNowDark);
+    });
+
+    // Insert theme toggle before logout button
+    const logoutButton = dropdown.querySelector('.logout-button');
+    if (logoutButton) {
+      dropdown.insertBefore(themeToggle, logoutButton);
+    }
+
     // Toggle dropdown on click
     accountIcon.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1282,7 +1310,6 @@ export class Spreadsheet {
     });
 
     // Use handleLogout function for logout
-    const logoutButton = dropdown.querySelector('.logout-button');
     if (logoutButton) {
       logoutButton.addEventListener('click', handleLogout);
     }
@@ -1749,6 +1776,30 @@ export class Spreadsheet {
     `;
     showSubmenu.appendChild(showDropdown);
 
+    // Add theme toggle
+    const themeToggle = document.createElement('div');
+    themeToggle.className = 'menu-dropdown-item';
+    themeToggle.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">dark_mode</span>
+        <span>Dark theme</span>
+      </div>
+      <span class="material-icons theme-check">check</span>
+    `;
+
+    // Initialize theme from localStorage
+    const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+    document.documentElement.classList.toggle('dark-theme', isDarkTheme);
+    themeToggle.querySelector('.theme-check')?.classList.toggle('active', isDarkTheme);
+
+    themeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark-theme');
+      const isNowDark = document.documentElement.classList.contains('dark-theme');
+      localStorage.setItem('darkTheme', isNowDark.toString());
+      themeToggle.querySelector('.theme-check')?.classList.toggle('active', isNowDark);
+      dropdown.classList.remove('active');
+    });
+
     // Zoom submenu items
     const zoomSubmenu = document.createElement('div');
     zoomSubmenu.className = 'submenu-item';
@@ -1789,6 +1840,7 @@ export class Spreadsheet {
 
     // Add all items to dropdown
     dropdown.appendChild(showSubmenu);
+    dropdown.appendChild(themeToggle);
     dropdown.appendChild(zoomSubmenu);
     dropdown.appendChild(document.createElement('div')).className = 'menu-dropdown-separator';
     dropdown.appendChild(fullScreenItem);
@@ -2559,6 +2611,44 @@ export class Spreadsheet {
           button.classList.remove('active');
         }
       }
+    });
+  }
+
+  private setupThemeToggle(): void {
+    const viewMenu = document.querySelector('.menu-item:nth-child(3)');
+    if (!viewMenu) return;
+
+    // Find the View dropdown
+    const dropdown = viewMenu.querySelector('.menu-dropdown');
+    if (!dropdown) return;
+
+    // Add theme toggle before the separator
+    const themeToggle = document.createElement('div');
+    themeToggle.className = 'menu-dropdown-item';
+    themeToggle.innerHTML = `
+      <div class="menu-item-left">
+        <span class="material-icons">dark_mode</span>
+        <span>Dark theme</span>
+      </div>
+      <span class="material-icons theme-check">check</span>
+    `;
+
+    // Insert before the last separator
+    const separator = dropdown.querySelector('.menu-dropdown-separator:last-of-type');
+    if (separator) {
+      dropdown.insertBefore(themeToggle, separator);
+    }
+
+    // Initialize theme from localStorage
+    const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+    document.documentElement.classList.toggle('dark-theme', isDarkTheme);
+    themeToggle.querySelector('.theme-check')?.classList.toggle('active', isDarkTheme);
+
+    themeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark-theme');
+      const isNowDark = document.documentElement.classList.contains('dark-theme');
+      localStorage.setItem('darkTheme', isNowDark.toString());
+      themeToggle.querySelector('.theme-check')?.classList.toggle('active', isNowDark);
     });
   }
 }

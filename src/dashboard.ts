@@ -90,9 +90,27 @@ async function loadSpreadsheets() {
   }
 }
 
+function setupThemeToggle() {
+  const themeToggle = document.querySelector('.theme-toggle-button');
+  if (!themeToggle) return;
+
+  // Initialize theme from localStorage
+  const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+  document.documentElement.classList.toggle('dark-theme', isDarkTheme);
+  themeToggle.querySelector('.theme-check')?.classList.toggle('active', isDarkTheme);
+
+  themeToggle.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark-theme');
+    const isNowDark = document.documentElement.classList.contains('dark-theme');
+    localStorage.setItem('darkTheme', isNowDark.toString());
+    themeToggle.querySelector('.theme-check')?.classList.toggle('active', isNowDark);
+  });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   if (await checkAuth()) {
+    setupThemeToggle();
     loadSpreadsheets();
     
     // Add new spreadsheet handler
